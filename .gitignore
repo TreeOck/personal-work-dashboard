@@ -12,3 +12,6 @@ dashboard.html
 __pycache__/
 .DS_Store
 .playwright-mcp/
+
+.venv/
+.pytest_cache/

@@ -34,7 +34,6 @@ h1{font-size:22px;margin:0;font-weight:650;letter-spacing:-.01em}
 button,input{font:inherit;color:inherit}
 .btn{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
 .btn:hover{background:var(--surface2)}
-.kpi-period{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 6px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
 .kpi b{display:block;font-size:22px;font-weight:650;font-variant-numeric:tabular-nums}
@@ -97,6 +96,39 @@ summary{cursor:pointer;color:var(--accent);font-size:13px}
 @media (max-width:760px){.board{grid-template-columns:1fr}}
 .empty{color:var(--muted);padding:40px 0;text-align:center}
 @media (max-width:560px){.commit{grid-template-columns:56px 1fr}.commit .t,.commit .d{display:none}.bar{grid-template-columns:100px 1fr 60px}}
+.period{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.period button{border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:7px;width:28px;height:26px;cursor:pointer;font-size:13px;line-height:1}
+.period button:disabled{opacity:.35;cursor:default}
+.period .vs{text-transform:none;letter-spacing:0}
+.kpi .delta{display:block;font-size:11.5px;margin-top:2px;color:var(--muted)}
+.kpi .delta.up{color:var(--feature)}.kpi .delta.down{color:var(--fix)}
+.actions{display:flex;gap:8px}
+.thread{background:var(--surface);border-top:1px solid var(--line)}
+.thread:first-of-type{border-top:0}
+.thread>summary{list-style:none;cursor:pointer;padding:10px 14px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;color:var(--text)}
+.thread>summary::-webkit-details-marker{display:none}
+.thread>summary::before{content:"▸";color:var(--muted);width:10px}
+.thread[open]>summary::before{content:"▾"}
+.thread .tn{font-weight:600}
+.thread .ts{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.thread .task{padding-left:28px}
+.hl{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:10px 0}
+.hl h3{margin:0 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.hl ol{margin:0;padding-left:20px}
+.hl li{margin:3px 0}
+.hl .ts{font-size:12px;color:var(--muted)}
+.tag{font-size:12px;color:var(--muted)}
+.card details{margin-top:6px}
+.card .commits{margin-top:4px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.modal[hidden]{display:none}
+.modal>div{background:var(--surface);border:1px solid var(--line);border-radius:12px;width:min(720px,100%);max-height:90vh;display:flex;flex-direction:column;gap:10px;padding:14px}
+.modal h2{margin:0;font-size:15px}
+.modal textarea{flex:1;min-height:320px;width:100%;resize:vertical;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px;font:12.5px/1.5 ui-monospace,Menlo,monospace}
+.modal .row{display:flex;gap:8px;align-items:center;justify-content:flex-end}
+.modal .msg{margin-right:auto;font-size:13px;color:var(--muted)}
+kbd{font:11px ui-monospace,Menlo,monospace;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--muted)}
+.keys{color:var(--muted);font-size:12px;margin-top:28px;text-align:center}
 </style>
 </head>
 <body>
@@ -106,9 +138,13 @@ summary{cursor:pointer;color:var(--accent);font-size:13px}
       <h1>Personal Work Tracker</h1>
       <div class="sub" id="gen"></div>
     </div>
-    <button class="btn" id="theme" title="Toggle theme">Theme</button>
+    <div class="actions">
+      <button class="btn" id="standup" title="Yesterday / Today / Blockers as text">Copy standup</button>
+      <button class="btn" id="report" title="Markdown report of the period on screen">Copy report</button>
+      <button class="btn" id="theme" title="Toggle theme">Theme</button>
+    </div>
   </header>
-  <div class="kpi-period" id="kpi-period"></div>
+  <div class="period" id="period"></div>
   <div class="kpis" id="kpis"></div>
   <div class="controls">
     <div class="tabs" role="tablist" id="tabs">
@@ -117,159 +153,314 @@ summary{cursor:pointer;color:var(--accent);font-size:13px}
       <button class="tab" role="tab" data-v="week">Week</button>
       <button class="tab" role="tab" data-v="month">Month</button>
     </div>
-    <input class="search" id="q" type="search" placeholder="Search tasks, repos, commits…">
+    <input class="search" id="q" type="search" placeholder="Search tasks, repos, commits…  ( / )">
   </div>
   <div class="chips" id="chips"></div>
   <div id="out"></div>
+  <div class="keys"><kbd>c</kbd> <kbd>d</kbd> <kbd>w</kbd> <kbd>m</kbd> views · <kbd>←</kbd> <kbd>→</kbd> period · <kbd>/</kbd> search · <kbd>Esc</kbd> close / clear</div>
   <div class="pop" id="pop" hidden></div>
+  <div class="modal" id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div>
+      <h2 id="modal-title"></h2>
+      <textarea id="modal-text" spellcheck="false"></textarea>
+      <div class="row"><span class="msg" id="modal-msg"></span><button class="btn" id="modal-copy">Copy</button><button class="btn" id="modal-close">Close</button></div>
+    </div>
+  </div>
 </div>
 <script>
 const DATA = /*__DATA__*/null;
 const TZ = "Asia/Kolkata";
 const fmtDay = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-GB", {weekday:"short", day:"numeric", month:"short", year:"numeric", timeZone:"UTC"});
+const fmtDayShort = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-GB", {weekday:"short", day:"numeric", month:"short", timeZone:"UTC"});
 const fmtShort = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-GB", {day:"numeric", month:"short", timeZone:"UTC"});
+const fmtMonth = k => new Date(k + "-15T12:00:00Z").toLocaleDateString("en-GB", {month:"long", year:"numeric", timeZone:"UTC"});
 const istDate = iso => new Date(iso).toLocaleDateString("en-CA", {timeZone: TZ});
 const istTime = iso => new Date(iso).toLocaleTimeString("en-GB", {timeZone: TZ, hour:"2-digit", minute:"2-digit"});
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const weekStart = d => { const x = new Date(d + "T12:00:00Z"); const k = (x.getUTCDay() + 6) % 7; x.setUTCDate(x.getUTCDate() - k); return x.toISOString().slice(0,10); };
 const addDays = (d, n) => { const x = new Date(d + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0,10); };
+const addMonths = (k, n) => { const x = new Date(Date.UTC(+k.slice(0,4), +k.slice(5,7) - 1 + n, 15)); return x.toISOString().slice(0,7); };
+const pl = (n, w) => n + " " + w + (n === 1 ? "" : "s");
+const sum = (ts, f) => ts.reduce((a,t) => a + f(t), 0);
+const groupBy = (arr, f) => arr.reduce((m, x) => ((m[f(x)] = m[f(x)] || []).push(x), m), {});
+const uniq = a => [...new Set(a)];
+const span = ds => { const s = uniq(ds).sort(); return s.length === 1 ? fmtShort(s[0]) : fmtShort(s[0]) + "–" + fmtShort(s[s.length-1]); };
 
 // ---- model: attach commits to tasks; unsummarised commits become synthetic tasks
 const commits = DATA.commits.map(c => ({...c, day: istDate(c.date), time: istTime(c.date)}));
+const byKey = Object.fromEntries(commits.map(c => [c.repo_path + ":" + c.sha, c]));
 const firstDay = commits.reduce((m, c) => c.day < m ? c.day : m, "9999");  // DATA.since is only the last scan window
 const used = new Set();
 const tasks = DATA.tasks.map(t => {
   const cs = t.commits.flatMap(p => commits.filter(c => c.sha.startsWith(p)));
   cs.forEach(c => used.add(c.sha + c.repo_path));
-  return {...t, cs};
+  return {...t, thread: t.thread || "(no thread)", cs};
 });
-const orphans = commits.filter(c => !used.has(c.sha + c.repo_path));
 const synth = {};
-orphans.forEach(c => { const k = c.day + "|" + c.project; (synth[k] = synth[k] || {id:"u-"+k, date:c.day, project:c.project, kind:"unsummarised",
-  title:"Not yet summarised", summary:"These commits were made after the last summary run. They get a written summary on the next 5pm run.", details:[], cs:[]}).cs.push(c); });
+commits.filter(c => !used.has(c.sha + c.repo_path)).forEach(c => { const k = c.day + "|" + c.project;
+  (synth[k] = synth[k] || {id:"u-"+k, date:c.day, project:c.project, kind:"unsummarised", thread:"Not yet summarised",
+    title:"Not yet summarised", summary:"These commits were made after the last summary run. They get a written summary on the next 5pm run.", details:[], cs:[]}).cs.push(c); });
 tasks.push(...Object.values(synth));
 tasks.forEach(t => {
-  t.ins = t.cs.reduce((a,c) => a + c.ins, 0); t.del = t.cs.reduce((a,c) => a + c.del, 0);
-  t.repos = [...new Set(t.cs.map(c => c.repo))];
+  t.ins = sum(t.cs, c => c.ins); t.del = sum(t.cs, c => c.del);
+  t.repos = uniq(t.cs.map(c => c.repo));
   t.times = t.cs.map(c => c.time).sort();
 });
-const todo = DATA.todo || [];
-const projects = [...new Set([...tasks.map(t => t.project), ...todo.map(i => i.project).filter(Boolean)])].sort();
-const state = {view: "current", projects: new Set(projects), q: ""};
+const todo = (DATA.todo || []).map(i => ({...i, cs: (i.linked || []).map(k => byKey[k]).filter(Boolean)}));
+const projects = uniq([...tasks.map(t => t.project), ...todo.map(i => i.project).filter(Boolean)]).sort();
+
+const TODAY = istDate(new Date().toISOString());
+const state = {view: "current", projects: new Set(projects), q: "",
+  anchor: {day: TODAY, week: weekStart(TODAY), month: TODAY.slice(0,7)}};
 try { const v = localStorage.getItem("view"); if (["current","day","week","month"].includes(v)) state.view = v; } catch(e){}
 
-const visible = () => tasks.filter(t => state.projects.has(t.project) &&
-  (!state.q || (t.title + t.summary + t.details.join(" ") + t.repos.join(" ") + t.cs.map(c => c.subject).join(" ")).toLowerCase().includes(state.q)))
-  .sort((a,b) => b.date.localeCompare(a.date) || a.project.localeCompare(b.project));
+const inProjects = t => state.projects.has(t.project);
+const matches = t => !state.q || (t.title + t.summary + t.thread + t.details.join(" ") + t.repos.join(" ") + t.cs.map(c => c.subject).join(" ")).toLowerCase().includes(state.q);
+const visible = () => tasks.filter(t => inProjects(t) && matches(t)).sort((a,b) => b.date.localeCompare(a.date) || a.project.localeCompare(b.project));
 
-function taskHTML(t) {
-  const commitsHTML = t.cs.slice().sort((a,b) => a.date.localeCompare(b.date)).map(c =>
+// ---- periods: each view has an anchor; the list, numbers and report all use it
+const activeDays = () => uniq(visible().map(t => t.date)).sort();
+const PERIOD = {
+  day: {
+    has: (k, t) => t.date === k,
+    label: k => (k === TODAY ? "Today · " : "") + fmtDay(k),
+    prev: k => { const a = activeDays().filter(d => d < k); return a.length ? a[a.length-1] : null; },
+    next: k => { const a = activeDays().filter(d => d > k && d <= TODAY); return a.length ? a[0] : (k < TODAY ? TODAY : null); },
+    vsLabel: k => fmtDayShort(k),
+  },
+  week: {
+    has: (k, t) => weekStart(t.date) === k,
+    label: k => (k === weekStart(TODAY) ? "This week · " : "Week of ") + fmtShort(k) + " – " + fmtShort(addDays(k, 6)),
+    prev: k => addDays(k, -7) >= weekStart(firstDay) ? addDays(k, -7) : null,
+    next: k => addDays(k, 7) <= weekStart(TODAY) ? addDays(k, 7) : null,
+    vsLabel: k => "week of " + fmtShort(k),
+  },
+  month: {
+    has: (k, t) => t.date.slice(0,7) === k,
+    label: k => (k === TODAY.slice(0,7) ? "This month · " : "") + fmtMonth(k),
+    prev: k => addMonths(k, -1) >= firstDay.slice(0,7) ? addMonths(k, -1) : null,
+    next: k => addMonths(k, 1) <= TODAY.slice(0,7) ? addMonths(k, 1) : null,
+    vsLabel: k => fmtMonth(k),
+  },
+};
+// comparison for the day view is the previous *active* day; weeks/months compare to the calendar period before
+// no comparison against a period that ends before the data starts (it would all read "new")
+const prevForCompare = (v, k) => v === "day" ? PERIOD.day.prev(k) :
+  v === "week" ? (addDays(k, -1) >= firstDay ? addDays(k, -7) : null) :
+  (addMonths(k, -1) >= firstDay.slice(0,7) ? addMonths(k, -1) : null);
+const inPeriod = (v, k) => visible().filter(t => PERIOD[v].has(k, t));
+
+function stats(ts) {
+  return {commits: sum(ts, t => t.cs.length), tasks: ts.length, repos: uniq(ts.flatMap(t => t.repos)).length,
+    projects: uniq(ts.map(t => t.project)).length, days: uniq(ts.map(t => t.date)).length,
+    ins: sum(ts, t => t.ins), del: sum(ts, t => t.del)};
+}
+function delta(cur, prev) {
+  if (prev == null) return "";
+  if (!prev && !cur) return `<span class="delta">–</span>`;
+  if (!prev) return `<span class="delta up">new</span>`;
+  const p = Math.round((cur - prev) / prev * 100);
+  return p === 0 ? `<span class="delta">same</span>` : `<span class="delta ${p > 0 ? "up" : "down"}">${p > 0 ? "↑" : "↓"} ${Math.abs(p)}%</span>`;
+}
+
+// ---- rendering pieces
+function commitRows(cs) {
+  return cs.slice().sort((a,b) => a.date.localeCompare(b.date)).map(c =>
     `<div class="commit"><span>${c.sha.slice(0,7)}</span><span class="t">${c.time}</span><span class="s" title="${esc(c.subject)}">${esc(c.subject)}</span><span class="d"><span class="add">+${c.ins}</span> <span class="del">-${c.del}</span></span></div>`).join("");
+}
+function taskHTML(t, showDate) {
   const det = t.details.length ? `<ul>${t.details.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : "";
   return `<div class="task">
     <div class="task-top"><span class="kind ${t.kind}">${t.kind}</span><div><div class="task-title">${esc(t.title)}</div><div class="task-sum">${esc(t.summary)}</div></div></div>
     ${det}
-    <div class="meta"><span>${esc(t.repos.join(", "))}</span><span>${t.cs.length} commit${t.cs.length===1?"":"s"}</span><span>${t.times[0]}${t.times.length>1?"–"+t.times[t.times.length-1]:""} IST</span><span><span class="add">+${t.ins}</span> <span class="del">-${t.del}</span></span></div>
-    <details><summary>Commits</summary><div class="commits">${commitsHTML}</div></details>
+    <div class="meta">${showDate ? `<span>${fmtDayShort(t.date)}</span>` : `<span class="tag">${esc(t.thread)}</span>`}<span>${esc(t.repos.join(", "))}</span><span>${pl(t.cs.length, "commit")}</span><span>${t.times[0]}${t.times.length>1?"–"+t.times[t.times.length-1]:""} IST</span><span><span class="add">+${t.ins}</span> <span class="del">-${t.del}</span></span></div>
+    <details><summary>Commits</summary><div class="commits">${commitRows(t.cs)}</div></details>
   </div>`;
 }
-const pl = (n, w) => n + " " + w + (n === 1 ? "" : "s");
-const sum = (ts, f) => ts.reduce((a,t) => a + f(t), 0);
-function projBlock(p, ts) {
-  return `<div class="proj"><h3><span>${esc(p)}</span><span>${pl(ts.length,"task")} · ${pl(sum(ts,t=>t.cs.length),"commit")}</span></h3>${ts.map(taskHTML).join("")}</div>`;
+function threadsOf(ts) {
+  return Object.entries(groupBy(ts, t => t.thread)).map(([name, list]) => ({name, list: list.sort((a,b) => a.date.localeCompare(b.date)),
+    project: list[0].project, commits: sum(list, t => t.cs.length), days: uniq(list.map(t => t.date)).length,
+    ins: sum(list, t => t.ins), del: sum(list, t => t.del), first: list.map(t => t.date).sort()[0]}))
+    .sort((a,b) => b.commits - a.commits);
 }
-const groupBy = (arr, f) => arr.reduce((m, x) => ((m[f(x)] = m[f(x)] || []).push(x), m), {});
-
-function renderPeriods(keyFn, labelFn) {
-  const g = groupBy(visible(), keyFn);
-  const keys = Object.keys(g).sort().reverse();
-  if (!keys.length) return `<div class="empty">No tasks match the current filters.</div>`;
-  return keys.map(k => {
-    const ts = g[k], byP = groupBy(ts, t => t.project);
-    return `<section class="group"><h2>${labelFn(k)} <small>${pl(ts.length,"task")} · ${pl(sum(ts,t=>t.cs.length),"commit")} · ${pl(new Set(ts.map(t=>t.date)).size,"active day")}</small></h2>
-      ${Object.keys(byP).sort().map(p => projBlock(p, byP[p].sort((a,b)=>a.times[0].localeCompare(b.times[0])))).join("")}</section>`;
-  }).join("");
+function threadHTML(th, periodStart) {
+  const earlier = tasks.some(t => t.thread === th.name && t.project === th.project && t.date < periodStart && inProjects(t));
+  return `<details class="thread"><summary><span class="tn">${esc(th.name)}</span>
+    <span class="ts">${span(th.list.map(t => t.date))} · ${pl(th.days, "day")} · ${pl(th.list.length, "task")} · ${pl(th.commits, "commit")} · <span class="add">+${th.ins}</span> <span class="del">-${th.del}</span>${earlier ? " · continues from earlier" : ""}</span></summary>
+    ${th.list.map(t => taskHTML(t, true)).join("")}</details>`;
 }
 function rollup(ts) {
   const byP = groupBy(ts, t => t.project), max = Math.max(1, ...Object.values(byP).map(a => sum(a,t=>t.cs.length)));
   return `<div class="rollup">${Object.keys(byP).sort().map(p => { const n = sum(byP[p], t=>t.cs.length);
-    return `<div class="bar"><span>${esc(p)}</span><i style="width:${Math.max(3, n/max*100)}%"></i><span>${n} commits</span></div>`; }).join("")}</div>`;
+    return `<div class="bar"><span>${esc(p)}</span><i style="width:${Math.max(3, n/max*100)}%"></i><span>${pl(n, "commit")}</span></div>`; }).join("")}</div>`;
 }
 function heatmap(ts, monthKey) {
   const per = {}; ts.forEach(t => per[t.date] = (per[t.date]||0) + t.cs.length);
-  const first = monthKey + "-01", cells = [];
-  const lead = (new Date(first + "T12:00:00Z").getUTCDay() + 6) % 7;
+  const cells = [], lead = (new Date(monthKey + "-01T12:00:00Z").getUTCDay() + 6) % 7;
   for (let i = 0; i < lead; i++) cells.push(`<div style="visibility:hidden"></div>`);
   const dim = new Date(Date.UTC(+monthKey.slice(0,4), +monthKey.slice(5), 0)).getUTCDate();
   const peak = Math.max(1, ...Object.values(per));
   for (let d = 1; d <= dim; d++) { const k = monthKey + "-" + String(d).padStart(2,"0"), n = per[k] || 0;
     const l = !n ? 0 : Math.min(4, Math.ceil(n / peak * 4));
-    cells.push(`<div data-l="${l}" data-day="${k}" tabindex="0" aria-label="${k}: ${n} commits">${d}</div>`); }
+    cells.push(`<div data-l="${l}" data-day="${k}" tabindex="0" aria-label="${k}: ${n} commits. Open day">${d}</div>`); }
   return `<div class="heat">${["M","T","W","T","F","S","S"].map(x=>`<div class="dow">${x}</div>`).join("")}${cells.join("")}</div>`;
 }
-function renderRollups(keyFn, labelFn, withHeat) {
-  const vis = visible(), g = groupBy(vis, keyFn), keys = Object.keys(g).sort().reverse();
-  if (!keys.length) return `<div class="empty">No tasks match the current filters.</div>`;
-  return keys.map(k => { const ts = g[k], byP = groupBy(ts, t => t.project);
-    return `<section class="group"><h2>${labelFn(k)} <small>${pl(ts.length,"task")} · ${pl(sum(ts,t=>t.cs.length),"commit")} · ${pl(new Set(ts.map(t=>t.date)).size,"active day")} · <span class="add">+${sum(ts,t=>t.ins)}</span> <span class="del">-${sum(ts,t=>t.del)}</span></small></h2>
-      ${withHeat ? heatmap(ts, k) : ""}${rollup(ts)}
-      ${Object.keys(byP).sort().map(p => projBlock(p, byP[p].sort((a,b)=>b.date.localeCompare(a.date)))).join("")}</section>`; }).join("");
+const highlights = ts => threadsOf(ts.filter(t => t.kind !== "unsummarised"))
+  .sort((a,b) => b.commits - a.commits || b.days - a.days).slice(0, 5);
+function highlightsHTML(ts) {
+  const hs = highlights(ts);
+  return hs.length ? `<div class="hl"><h3>Highlights</h3><ol>${hs.map(h => `<li><b>${esc(h.name)}</b> <span class="ts">${esc(h.project)} · ${span(h.list.map(t => t.date))} · ${pl(h.days, "day")} · ${pl(h.commits, "commit")}</span></li>`).join("")}</ol></div>` : "";
+}
+const empty = msg => `<div class="empty">${msg}</div>`;
+
+function renderDay(k) {
+  const ts = inPeriod("day", k);
+  if (!ts.length) { const p = PERIOD.day.prev(k);
+    return empty(`No commits on ${fmtDay(k)}.` + (p ? ` Press <kbd>←</kbd> for ${fmtDayShort(p)}.` : "")); }
+  const byP = groupBy(ts, t => t.project);
+  return Object.keys(byP).sort().map(p => { const list = byP[p].sort((a,b) => a.times[0].localeCompare(b.times[0]));
+    return `<div class="proj"><h3><span>${esc(p)}</span><span>${pl(list.length,"task")} · ${pl(sum(list,t=>t.cs.length),"commit")}</span></h3>${list.map(t => taskHTML(t, false)).join("")}</div>`; }).join("");
+}
+function renderRange(v, k) {
+  const ts = inPeriod(v, k), start = v === "week" ? k : k + "-01";
+  const head = v === "month" ? heatmap(ts, k) + highlightsHTML(ts) : "";
+  if (!ts.length) return head + empty("No commits in this period.");
+  const byP = groupBy(ts, t => t.project);
+  return head + rollup(ts) + Object.keys(byP).sort().map(p => { const ths = threadsOf(byP[p]);
+    return `<div class="proj"><h3><span>${esc(p)}</span><span>${pl(ths.length,"thread")} · ${pl(byP[p].length,"task")} · ${pl(sum(byP[p],t=>t.cs.length),"commit")}</span></h3>${ths.map(th => threadHTML(th, start)).join("")}</div>`; }).join("");
 }
 
 const ago = iso => { const m = Math.round((Date.now() - new Date(iso)) / 60000);
   return m < 60 ? m + "m ago" : m < 1440 ? Math.round(m/60) + "h ago" : Math.round(m/1440) + "d ago"; };
+const dur = (a, b) => { const m = Math.max(0, Math.round((new Date(b) - new Date(a)) / 60000));
+  return m < 60 ? m + "m" : m < 1440 ? Math.floor(m/60) + "h " + (m%60) + "m" : Math.floor(m/1440) + "d " + Math.floor(m%1440/60) + "h"; };
+const todoVisible = () => todo.filter(i => (!i.project || state.projects.has(i.project)) &&
+  (!state.q || (i.title + " " + (i.project||"") + " " + (i.repo||"") + " " + i.notes.map(n => n.text).join(" ")).toLowerCase().includes(state.q)));
+const boardCols = () => { const vis = todoVisible(), weekAgo = Date.now() - 7 * 864e5;
+  return [["In progress", vis.filter(i => i.status === "in_progress")], ["To do", vis.filter(i => i.status === "todo")],
+    ["Done · last 7 days", vis.filter(i => i.status === "done" && new Date(i.closed_at) >= weekAgo)]]; };
 function renderCurrent() {
-  const vis = todo.filter(i => (!i.project || state.projects.has(i.project)) &&
-    (!state.q || (i.title + " " + (i.project||"") + " " + (i.repo||"") + " " + i.notes.map(n => n.text).join(" ")).toLowerCase().includes(state.q)));
-  const weekAgo = Date.now() - 7 * 864e5;
-  const cols = [["In progress", vis.filter(i => i.status === "in_progress")], ["To do", vis.filter(i => i.status === "todo")],
-    ["Done · last 7 days", vis.filter(i => i.status === "done" && new Date(i.closed_at) >= weekAgo)]];
-  const card = i => `<div class="card ${i.status}">
+  const card = i => { const start = i.started_at || i.created_at;
+    const link = i.status === "todo" ? "" : i.project ? `<div class="meta"><span>${pl(i.cs.length, "commit")}${i.status === "in_progress" ? " so far" : ""}</span>${i.cs.length ? `<span><span class="add">+${sum(i.cs,c=>c.ins)}</span> <span class="del">-${sum(i.cs,c=>c.del)}</span></span>` : ""}<span>${i.closed_at ? dur(start, i.closed_at) + " start → done" : dur(start, new Date().toISOString()) + " in progress"}</span></div>` : "";
+    return `<div class="card ${i.status}">
       <div class="id">${i.id} · ${esc([i.project, i.repo].filter(Boolean).join(" / ") || "no project")}</div>
       <div class="task-title">${esc(i.title)}</div>
       <div class="meta"><span>added ${ago(i.created_at)}</span>${i.status !== "todo" ? `<span>${i.closed_at ? "closed " + ago(i.closed_at) : "updated " + ago(i.updated_at)}</span>` : ""}</div>
+      ${link}
       ${i.plan ? `<div class="meta">plan: <code>${esc(i.plan)}</code></div>` : ""}
       ${i.notes.length ? `<ul class="notes">${i.notes.slice(-3).map(n => `<li>${esc(n.text)} <span class="id">${ago(n.at)}</span></li>`).join("")}</ul>` : ""}
-    </div>`;
+      ${i.cs.length ? `<details><summary>Commits</summary><div class="commits">${commitRows(i.cs)}</div></details>` : ""}
+    </div>`; };
   const hint = `<div class="hint">Nothing here. Add one with <code>tracker add "Title" -p myproject -r my-repo</code></div>`;
-  return `<div class="board">${cols.map(([h, items]) => `<section class="col"><h2><span>${h}</span><span>${items.length}</span></h2>${items.map(card).join("") || hint}</section>`).join("")}</div>`;
-}
-function render() {
-  document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.v === state.view));
-  const o = document.getElementById("out");
-  if (state.view === "current") {
-    o.innerHTML = renderCurrent();
-  } else if (state.view === "day") {
-    const g = groupBy(visible(), t => t.date), keys = Object.keys(g).sort().reverse();
-    o.innerHTML = keys.length ? keys.map(d => { const ts = g[d], byP = groupBy(ts, t => t.project);
-      return `<section class="group"><h2>${fmtDay(d)} <small>${pl(ts.length,"task")} · ${pl(sum(ts,t=>t.cs.length),"commit")}</small></h2>
-        ${Object.keys(byP).sort().map(p => projBlock(p, byP[p].sort((a,b)=>a.times[0].localeCompare(b.times[0])))).join("")}</section>`; }).join("")
-      : `<div class="empty">No tasks match the current filters.</div>`;
-  } else if (state.view === "week") {
-    o.innerHTML = renderRollups(t => weekStart(t.date), k => `Week of ${fmtShort(k)} – ${fmtShort(addDays(k,6))}`, false);
-  } else {
-    o.innerHTML = renderRollups(t => t.date.slice(0,7), k => new Date(k + "-15T12:00:00Z").toLocaleDateString("en-GB",{month:"long",year:"numeric",timeZone:"UTC"}), true);
-  }
-  // KPIs cover the period the view is about: today / this week / this month; Current = whole range
-  const today = istDate(new Date().toISOString()), wk = weekStart(today);
-  const [inPeriod, label] = {
-    day: [t => t.date === today, `Today · ${fmtDay(today)}`],
-    week: [t => weekStart(t.date) === wk, `This week · ${fmtShort(wk)} – ${fmtShort(addDays(wk, 6))}`],
-    month: [t => t.date.slice(0, 7) === today.slice(0, 7), `This month · ${new Date(today + "T12:00:00Z").toLocaleDateString("en-GB", {month:"long", year:"numeric", timeZone:"UTC"})}`],
-    current: [() => true, `All time · since ${fmtShort(firstDay)}`],
-  }[state.view];
-  document.getElementById("kpi-period").textContent = label;
-  const vis = visible().filter(inPeriod), days = new Set(vis.map(t => t.date));
-  document.getElementById("kpis").innerHTML = [
-    ...[[sum(vis,t=>t.cs.length), "commit"], [vis.length, "task"], [new Set(vis.flatMap(t=>t.repos)).size, "repo"],
-    [new Set(vis.map(t=>t.project)).size, "project"], [days.size, "active day"]].map(([n, w]) => [n, pl(n, w).replace(/^\d+ /, "")]),
-    [`<span class="add">+${sum(vis,t=>t.ins).toLocaleString()}</span> <span class="del">-${sum(vis,t=>t.del).toLocaleString()}</span>`, "lines"]]
-    .map(([n,l]) => `<div class="kpi"><b>${n}</b><span>${l}</span></div>`).join("");
+  return `<div class="board">${boardCols().map(([h, items]) => `<section class="col"><h2><span>${h}</span><span>${items.length}</span></h2>${items.map(card).join("") || hint}</section>`).join("")}</div>`;
 }
 
+function render() {
+  const v = state.view, k = state.anchor[v];
+  document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.v === v));
+  const o = document.getElementById("out"), per = document.getElementById("period");
+  let cur, prev = null, vs = "";
+  if (v === "current") {
+    o.innerHTML = renderCurrent();
+    per.innerHTML = `<span>All time · since ${fmtShort(firstDay)}</span>`;
+    cur = stats(visible());
+  } else {
+    o.innerHTML = v === "day" ? renderDay(k) : renderRange(v, k);
+    const P = PERIOD[v], pk = prevForCompare(v, k);
+    per.innerHTML = `<button id="prev" aria-label="Previous period" ${P.prev(k) ? "" : "disabled"}>◀</button><span>${P.label(k)}</span><button id="next" aria-label="Next period" ${P.next(k) ? "" : "disabled"}>▶</button>` +
+      (pk ? `<span class="vs">· compared with ${P.vsLabel(pk)}</span>` : "");
+    cur = stats(inPeriod(v, k));
+    if (pk) prev = stats(inPeriod(v, pk));
+  }
+  const d = f => prev ? delta(f(cur), f(prev)) : "";
+  document.getElementById("kpis").innerHTML = [
+    [cur.commits, "commit", d(s => s.commits)], [cur.tasks, "task", d(s => s.tasks)], [cur.repos, "repo", ""],
+    [cur.projects, "project", ""], [cur.days, "active day", d(s => s.days)]].map(([n, w, dl]) => [n, pl(n, w).replace(/^\d+ /, ""), dl])
+    .concat([[`<span class="add">+${cur.ins.toLocaleString()}</span> <span class="del">-${cur.del.toLocaleString()}</span>`, "lines", d(s => s.ins + s.del)]])
+    .map(([n,l,dl]) => `<div class="kpi"><b>${n}</b><span>${l}</span>${dl}</div>`).join("");
+}
+function step(dir) {
+  const v = state.view; if (v === "current") return;
+  const nk = dir < 0 ? PERIOD[v].prev(state.anchor[v]) : PERIOD[v].next(state.anchor[v]);
+  if (nk) { state.anchor[v] = nk; render(); }
+}
+function setView(v) { state.view = v; try { localStorage.setItem("view", v); } catch(_){} hidePop(); render(); }
+function openDay(day) { state.anchor.day = day; setView("day"); scrollTo({top: 0}); }
+
+// ---- standup and report text
+// unsummarised commits: one bullet per distinct subject (same commit can exist in two repos), capped
+// `covered` = commits already reported through a finished to-do; they're not listed twice
+const ckey = c => c.repo_path + ":" + c.sha;
+const coveredBy = items => new Set(items.flatMap(i => i.cs.map(ckey)));
+function bullets(ts, indent, covered = new Set()) {
+  const out = [];
+  ts.filter(t => t.kind !== "unsummarised" && !(t.cs.length && t.cs.every(c => covered.has(ckey(c))))).forEach(t => out.push(`${indent}• ${t.title}`));
+  const subs = uniq(ts.filter(t => t.kind === "unsummarised").flatMap(t => t.cs.filter(c => !covered.has(ckey(c))).map(c => c.subject)));
+  subs.slice(0, 5).forEach(x => out.push(`${indent}• ${x}`));
+  if (subs.length > 5) out.push(`${indent}• …and ${subs.length - 5} more commits`);
+  return out;
+}
+function standupText() {
+  const days = uniq(tasks.filter(inProjects).map(t => t.date)).filter(d => d < TODAY).sort();
+  const yd = days[days.length - 1], lines = [`Standup · ${fmtDay(TODAY)}`, ""];
+  lines.push(yd ? `Yesterday (${fmtDayShort(yd)})` : "Yesterday");
+  const closed = todo.filter(i => i.status === "done" && i.closed_at && istDate(i.closed_at) === yd && (!i.project || state.projects.has(i.project)));
+  // a finished to-do stands in for the summarised tasks whose commits it already covers
+  const covered = coveredBy(closed);
+  const yts = tasks.filter(t => inProjects(t) && t.date === yd);
+  closed.forEach(i => lines.push(`• Done: ${i.title}${i.project ? ` [${[i.project, i.repo].filter(Boolean).join("/")}]` : ""}`));
+  Object.entries(groupBy(yts, t => t.project)).sort().forEach(([p, ts]) => { const b = bullets(ts, "  ", covered); if (b.length) lines.push(`${p}:`, ...b); });
+  if (!yts.length && !closed.length) lines.push("• Nothing recorded");
+  lines.push("", "Today");
+  const open = todo.filter(i => (!i.project || state.projects.has(i.project)) && (i.status === "in_progress" || i.status === "todo"))
+    .sort((a,b) => (a.status === "in_progress" ? 0 : 1) - (b.status === "in_progress" ? 0 : 1));
+  const doneToday = todo.filter(i => i.status === "done" && i.closed_at && istDate(i.closed_at) === TODAY && (!i.project || state.projects.has(i.project)));
+  doneToday.forEach(i => lines.push(`• Done: ${i.title}${i.project ? ` [${[i.project, i.repo].filter(Boolean).join("/")}]` : ""}`));
+  open.forEach(i => lines.push(`• ${i.title}${i.status === "todo" ? " (next)" : ""}${i.project ? ` [${[i.project, i.repo].filter(Boolean).join("/")}]` : ""}`));
+  const todays = tasks.filter(t => inProjects(t) && t.date === TODAY);
+  const todayB = bullets(todays, "  ", coveredBy(doneToday));
+  if (todayB.length) lines.push("  Also committed today:", ...todayB);
+  if (!open.length && !todayB.length && !doneToday.length) lines.push("• (nothing on the board)");
+  lines.push("", "Blockers", "• None");
+  return lines.join("\n");
+}
+function reportText() {
+  const v = state.view, L = [];
+  if (v === "current") {
+    L.push(`# Current work · ${fmtDay(TODAY)}`, "");
+    boardCols().forEach(([h, items]) => { L.push(`## ${h}`); items.forEach(i => L.push(`- ${i.title}${i.project ? ` _(${[i.project, i.repo].filter(Boolean).join("/")})_` : ""}${i.cs.length ? ` · ${pl(i.cs.length, "commit")}` : ""}`)); if (!items.length) L.push("- none"); L.push(""); });
+    return L.join("\n").trim();
+  }
+  const k = state.anchor[v], ts = inPeriod(v, k), s = stats(ts);
+  L.push(`# Work report · ${PERIOD[v].label(k)}`, "", `${pl(s.commits, "commit")} · ${pl(s.tasks, "task")} · ${pl(s.repos, "repo")} · ${pl(s.days, "active day")} · +${s.ins} / -${s.del} lines`, "");
+  if (!ts.length) return L.concat("No commits in this period.").join("\n");
+  if (v === "month") { L.push("## Highlights"); highlights(ts).forEach((h, n) => L.push(`${n+1}. **${h.name}** (${h.project}) · ${span(h.list.map(t => t.date))} · ${pl(h.commits, "commit")}`)); L.push(""); }
+  Object.entries(groupBy(ts, t => t.project)).sort().forEach(([p, list]) => {
+    L.push(`## ${p}`, "");
+    threadsOf(list).forEach(th => { L.push(`### ${th.name} · ${span(th.list.map(t => t.date))} · ${pl(th.commits, "commit")}`);
+      th.list.forEach(t => L.push(t.kind === "unsummarised" ? `- ${fmtShort(t.date)} · unsummarised: ${t.cs.map(c => c.subject).join("; ")}` : `- ${fmtShort(t.date)} · **${t.title}**: ${t.summary}`));
+      L.push(""); });
+  });
+  return L.join("\n").trim();
+}
+const modal = document.getElementById("modal"), mText = document.getElementById("modal-text"), mMsg = document.getElementById("modal-msg");
+function openModal(title, text) {
+  document.getElementById("modal-title").textContent = title; mText.value = text; mMsg.textContent = ""; modal.hidden = false;
+  document.getElementById("modal-copy").focus();
+}
+const closeModal = () => { modal.hidden = true; };
+async function copyModal() {
+  try { await navigator.clipboard.writeText(mText.value); mMsg.textContent = "Copied ✓"; return; } catch (_) {}
+  mText.focus(); mText.select();   // file:// pages may not get the clipboard API; fall back to the legacy copy
+  try { mMsg.textContent = document.execCommand("copy") ? "Copied ✓" : "Selected; press ⌘C to copy"; } catch (_) { mMsg.textContent = "Selected; press ⌘C to copy"; }
+}
+
+// ---- wiring
 document.getElementById("gen").textContent = `Commits by ${DATA.author_pattern} · since ${firstDay} · refreshed ${new Date(DATA.generated_at).toLocaleString("en-GB",{timeZone:TZ})} IST`;
-document.getElementById("tabs").addEventListener("click", e => { const b = e.target.closest(".tab"); if (!b) return; state.view = b.dataset.v; try { localStorage.setItem("view", state.view); } catch(_){} render(); });
-document.getElementById("q").addEventListener("input", e => { state.q = e.target.value.trim().toLowerCase(); render(); });
+document.getElementById("tabs").addEventListener("click", e => { const b = e.target.closest(".tab"); if (b) setView(b.dataset.v); });
+document.getElementById("period").addEventListener("click", e => { if (e.target.id === "prev") step(-1); if (e.target.id === "next") step(1); });
+const q = document.getElementById("q");
+q.addEventListener("input", () => { state.q = q.value.trim().toLowerCase(); render(); });
 document.getElementById("chips").innerHTML = projects.map(p => `<button class="chip" aria-pressed="true" data-p="${esc(p)}">${esc(p)}</button>`).join("");
 document.getElementById("chips").addEventListener("click", e => { const b = e.target.closest(".chip"); if (!b) return;
   const on = b.getAttribute("aria-pressed") === "true"; b.setAttribute("aria-pressed", String(!on));
@@ -277,29 +468,55 @@ document.getElementById("chips").addEventListener("click", e => { const b = e.ta
 document.getElementById("theme").addEventListener("click", () => {
   const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
   r.dataset.theme = dark ? "light" : "dark"; });
-// Month heatmap: hover / focus / tap a day to see what was done that day
+document.getElementById("standup").addEventListener("click", () => openModal("Standup", standupText()));
+document.getElementById("report").addEventListener("click", () => openModal("Report", reportText()));
+document.getElementById("modal-copy").addEventListener("click", copyModal);
+document.getElementById("modal-close").addEventListener("click", closeModal);
+modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
+
+// Month heatmap: hover / focus shows the day; click opens it in the Day view (touch: first tap previews)
 const pop = document.getElementById("pop");
+let popDay = null;
 function showPop(cell) {
   const day = cell.dataset.day, ts = visible().filter(t => t.date === day);
   const n = sum(ts, t => t.cs.length), byP = groupBy(ts, t => t.project);
   pop.innerHTML = `<h4>${fmtDay(day)}</h4><div class="sub">${n ? pl(n, "commit") + " · " + pl(ts.length, "task") : "No commits"}</div>` +
     Object.keys(byP).sort().map(p => `<div class="pp">${esc(p)}</div>` +
-      byP[p].map(t => `<div class="pt"><span class="kind ${t.kind}">${t.kind}</span><span>${esc(t.title)}</span></div>`).join("")).join("");
-  pop.hidden = false;
+      byP[p].map(t => `<div class="pt"><span class="kind ${t.kind}">${t.kind}</span><span>${esc(t.title)}</span></div>`).join("")).join("") +
+    `<div class="pp">click to open the day</div>`;
+  pop.hidden = false; popDay = day;
   const r = cell.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight, m = 8;
   let x = r.right + m, y = r.top;
   if (x + w > innerWidth - m) x = Math.max(m, r.left - w - m);   // flip left near the right edge
   if (y + h > innerHeight - m) y = Math.max(m, innerHeight - h - m);
   pop.style.left = x + "px"; pop.style.top = y + "px";
 }
-const hidePop = () => { pop.hidden = true; };
+function hidePop() { pop.hidden = true; popDay = null; }
 const out = document.getElementById("out");
-out.addEventListener("mouseover", e => { const c = e.target.closest("[data-day]"); c ? showPop(c) : hidePop(); });
-out.addEventListener("mouseleave", hidePop);
+out.addEventListener("pointerover", e => { if (e.pointerType === "touch") return; const c = e.target.closest("[data-day]"); c ? showPop(c) : hidePop(); });
+out.addEventListener("pointerleave", hidePop);
 out.addEventListener("focusin", e => { const c = e.target.closest("[data-day]"); if (c) showPop(c); });
-out.addEventListener("focusout", hidePop);
-out.addEventListener("click", e => { const c = e.target.closest("[data-day]"); if (c) showPop(c); });  // touch
+out.addEventListener("focusout", e => { if (!e.relatedTarget || !e.relatedTarget.closest("[data-day]")) hidePop(); });
+out.addEventListener("click", e => { const c = e.target.closest("[data-day]"); if (!c) return;
+  if (e.pointerType === "touch" && popDay !== c.dataset.day) { showPop(c); return; }  // first tap previews
+  openDay(c.dataset.day); });
+out.addEventListener("keydown", e => { const c = e.target.closest("[data-day]"); if (c && e.key === "Enter") openDay(c.dataset.day); });
 addEventListener("scroll", hidePop, {passive: true});
+
+// keyboard: c/d/w/m views, ←/→ period, / search, Esc closes the dialog or clears search
+document.addEventListener("keydown", e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === "Escape") {
+    if (!modal.hidden) closeModal(); else if (document.activeElement === q || state.q) { q.value = ""; state.q = ""; q.blur(); render(); }
+    hidePop(); return;
+  }
+  if (!modal.hidden || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  const views = {c: "current", d: "day", w: "week", m: "month"};
+  if (views[e.key]) setView(views[e.key]);
+  else if (e.key === "ArrowLeft") step(-1);
+  else if (e.key === "ArrowRight") step(1);
+  else if (e.key === "/") { e.preventDefault(); q.focus(); }
+});
 render();
 </script>
 </body>

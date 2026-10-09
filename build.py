@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Inline commits.json + tasks.json into template.html -> dashboard.html."""
 import fcntl, json, os
+from datetime import datetime
+from links import link
 HERE = os.path.dirname(os.path.abspath(__file__))
 def load(n):
     with open(os.path.join(HERE, n)) as f:
@@ -12,6 +14,9 @@ fcntl.flock(_lock, fcntl.LOCK_EX)
 data = load("commits.json")
 data["tasks"] = load("tasks.json")["tasks"]
 data["todo"] = load("todo.json")["items"] if os.path.exists(os.path.join(HERE, "todo.json")) else []
+_now = datetime.now().astimezone()
+for it in data["todo"]:  # commits made while each current-task was open (computed fresh every build)
+    it["linked"] = [c["repo_path"] + ":" + c["sha"] for c in link(it, data["commits"], _now)]
 blob = json.dumps(data).replace("</", "<\\/")  # keep commit text from closing the script tag
 with open(os.path.join(HERE, "template.html")) as f:
     html = f.read()

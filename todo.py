@@ -47,6 +47,12 @@ def rebuild():
         print("warning: dashboard rebuild failed:\n" + r.stderr.strip()[-400:], file=sys.stderr)
 
 
+def scan():
+    r = subprocess.run([sys.executable, os.path.join(HERE, "scan.py")], capture_output=True, text=True)
+    if r.returncode != 0:
+        print("warning: git scan failed, linking uses the last scan:\n" + r.stderr.strip()[-300:], file=sys.stderr)
+
+
 def find(doc, tid):
     for it in doc["items"]:
         if it["id"] == tid:
@@ -86,7 +92,7 @@ def main():
             nxt = 1 + max([int(i["id"][2:]) for i in doc["items"]] or [0])
             it = {"id": "t-%04d" % nxt, "title": title, "project": args.project, "repo": args.repo,
                   "plan": os.path.abspath(args.plan) if args.plan else None, "status": "todo",
-                  "created_at": now(), "updated_at": now(), "closed_at": None, "notes": []}
+                  "created_at": now(), "updated_at": now(), "started_at": None, "closed_at": None, "notes": []}
             doc["items"].append(it)
             print(it["id"])
         elif args.cmd == "note":
@@ -100,8 +106,12 @@ def main():
             if it["status"] == new:
                 print("already %s: %s" % (new, fmt(it)))
                 return
+            if new == "done":
+                scan()  # pick up commits made since the last refresh so they get linked
             it["status"], it["updated_at"] = new, now()
             it["closed_at"] = now() if new in ("done", "dropped") else None
+            if new == "in_progress" and not it.get("started_at"):
+                it["started_at"] = now()  # first start only; re-opening keeps the original
             print(fmt(it))
     rebuild()
 

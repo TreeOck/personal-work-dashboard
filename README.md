@@ -39,8 +39,12 @@ tracker note t-0007 "tests passing"
 tracker todo [--all]
 ```
 
-- **Views:** Current (board), Day, Week and Month. The numbers at the top cover the selected view's period (today, this week, this month, or everything), and they follow the project filter and search.
-- **Month heatmap:** hover over a day (or tap or tab to it) to see that day's tasks.
+- **Views:** Current (board), Day (one day), Week and Month. Use ◀ ▶ (or `←` `→`) to move between periods; the Day view skips days with no commits. The numbers cover the period on screen, show the change against the previous period, and follow the project filter and search.
+- **Threads:** related tasks across days are grouped into threads (e.g. "DMS Wave 4: versioning"). The Week and Month views list threads, and the Month view adds the top 5 as Highlights. Threads are assigned automatically by the summariser.
+- **To-do ↔ commits:** a to-do task is linked to the commits in its repo (or whole project if no repo) made between `tracker start` and `tracker done`. `tracker done` rescans git first, so recent commits count.
+- **Copy standup / Copy report:** standup text (Yesterday / Today / Blockers) or a Markdown report of the period on screen.
+- **Month heatmap:** hover over a day to see its tasks, then click to open it in the Day view (on touch screens, tap once to preview and again to open).
+- **Keys:** `c` `d` `w` `m` switch views, `←` `→` change period, `/` search, `Esc` close / clear.
 - A *project* is a top-level folder under `root`, and a *repo* is a git repo inside it, up to 3 levels deep.
 
 To have Claude Code keep the Current board in sync, add a rule to your `~/.claude/CLAUDE.md` telling it to run `tracker add` / `start` / `done` when work starts and ends.
@@ -51,8 +55,13 @@ To have Claude Code keep the Current board in sync, add a rule to your `~/.claud
 |---|---|
 | `scan.py` | Reads commits by your emails on local and remote branches (14-day lookback by default) and merges them into `commits.json`. Older history is kept. |
 | `summarise.py` | Sends commits that no task covers yet to `claude -p --model sonnet` and asks for JSON. It checks that every commit appears exactly once, with the right date and project, then appends to `tasks.json`. On failure nothing is written, and the commits show as "unsummarised". |
+| `links.py` | Works out which commits belong to each to-do task (computed on every build). |
 | `todo.py` | The current-tasks list (`todo.json`). Each change takes a file lock, writes atomically and rebuilds the page. |
 | `build.py` | Inlines the JSON into `template.html` and writes `dashboard.html`. Builds are serialised so the page is never stale. |
 | `refresh.sh` | scan, then summarise, then build. Logs to `refresh.log`. |
+
+`python3 summarise.py --backfill-threads` gives a thread to any task without one (used once, when upgrading older data).
+
+Tests: `python3 -m venv .venv && .venv/bin/pip install pytest && .venv/bin/python -m pytest tests`
 
 `tasks.json` is plain JSON, so you can edit summaries by hand and run `python3 build.py`. Days are grouped in IST (`Asia/Kolkata`); the timezone is set in `template.html` and `summarise.py`.
