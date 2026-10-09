@@ -1,0 +1,14 @@
+# Personal data -- never commit
+config.json
+commits.json
+tasks.json
+todo.json
+dashboard.html
+
+# Runtime files
+*.log
+*.lock
+*.tmp
+__pycache__/
+.DS_Store
+.playwright-mcp/

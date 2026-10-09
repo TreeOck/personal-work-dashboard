@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Personal Work Tracker</title>
+<style>
+:root{
+  --bg:#f6f5f1; --surface:#fff; --surface2:#f0eee8; --text:#1c1b18; --muted:#6b675e; --line:#e3e0d6;
+  --accent:#2f5d50; --accent-soft:#dfece7;
+  --feature:#2f5d50; --fix:#b4532a; --infra:#3d5a9e; --docs:#7a6a2f; --other:#6b675e;
+  --heat0:#ebe8df; --heat1:#c5ddd3; --heat2:#8fbfae; --heat3:#4f9680; --heat4:#2f5d50;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15161a; --surface:#1d1f25; --surface2:#262932; --text:#ecebe6; --muted:#9b9a93; --line:#31343d;
+    --accent:#7fc4ad; --accent-soft:#22352f;
+    --feature:#7fc4ad; --fix:#e59a74; --infra:#8fa8e6; --docs:#d1c177; --other:#9b9a93;
+    --heat0:#262932; --heat1:#25413a; --heat2:#2f6355; --heat3:#4a9a82; --heat4:#7fc4ad;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15161a; --surface:#1d1f25; --surface2:#262932; --text:#ecebe6; --muted:#9b9a93; --line:#31343d;
+  --accent:#7fc4ad; --accent-soft:#22352f;
+  --feature:#7fc4ad; --fix:#e59a74; --infra:#8fa8e6; --docs:#d1c177; --other:#9b9a93;
+  --heat0:#262932; --heat1:#25413a; --heat2:#2f6355; --heat3:#4a9a82; --heat4:#7fc4ad;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 16px 64px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+h1{font-size:22px;margin:0;font-weight:650;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:13px}
+button,input{font:inherit;color:inherit}
+.btn{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+.btn:hover{background:var(--surface2)}
+.kpi-period{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 6px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.kpi b{display:block;font-size:22px;font-weight:650;font-variant-numeric:tabular-nums}
+.kpi b>span{font-size:17px}
+.kpi>span{color:var(--muted);font-size:12px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+.tabs{display:inline-flex;background:var(--surface2);border-radius:9px;padding:3px}
+.tab{border:0;background:transparent;padding:6px 16px;border-radius:7px;cursor:pointer;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.search{flex:1;min-width:160px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 11px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 12px;font-size:13px;cursor:pointer;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--text)}
+.group{margin-bottom:26px}
+.group>h2{font-size:15px;margin:0 0 4px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.group>h2 small{color:var(--muted);font-weight:400;font-size:12.5px}
+.proj{margin:10px 0 0;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.proj>h3{margin:0;padding:9px 14px;font-size:13px;background:var(--surface2);display:flex;justify-content:space-between;gap:8px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.task{padding:12px 14px;border-top:1px solid var(--line)}
+.task:first-of-type{border-top:0}
+.task-top{display:flex;gap:8px;align-items:flex-start}
+.kind{flex:none;font-size:11px;text-transform:uppercase;letter-spacing:.05em;border:1px solid currentColor;border-radius:5px;padding:0 6px;margin-top:3px}
+.kind.feature{color:var(--feature)}.kind.fix{color:var(--fix)}.kind.infra{color:var(--infra)}.kind.docs{color:var(--docs)}.kind.unsummarised{color:var(--fix);border-style:dashed}
+.task-title{font-weight:600}
+.task-sum{color:var(--muted);margin:3px 0 0}
+.meta{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--muted);margin-top:6px;font-variant-numeric:tabular-nums}
+.add{color:var(--feature)}.del{color:var(--fix)}
+details{margin-top:6px}
+summary{cursor:pointer;color:var(--accent);font-size:13px}
+.task ul{margin:6px 0 0;padding-left:18px}
+.task li{margin:2px 0}
+.commits{margin-top:8px;font:12px/1.5 ui-monospace,Menlo,monospace}
+.commit{display:grid;grid-template-columns:62px 52px 1fr auto;gap:8px;padding:2px 0;color:var(--muted)}
+.commit .s{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rollup{display:grid;gap:8px;margin-bottom:6px}
+.bar{display:grid;grid-template-columns:minmax(120px,200px) 1fr 80px;gap:10px;align-items:center;font-size:13px}
+.bar i{display:block;height:10px;border-radius:5px;background:var(--accent)}
+.heat{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;max-width:420px;margin:8px 0 4px}
+.heat div{aspect-ratio:1;border-radius:5px;background:var(--heat0);font-size:10px;padding:3px;color:var(--muted);position:relative}
+.heat div[data-l="1"]{background:var(--heat1)}.heat div[data-l="2"]{background:var(--heat2)}.heat div[data-l="3"]{background:var(--heat3);color:#fff}.heat div[data-l="4"]{background:var(--heat4);color:#fff}
+.heat [data-day]{cursor:default}
+.heat [data-day]:hover,.heat [data-day]:focus{outline:2px solid var(--text);outline-offset:1px}
+.pop{position:fixed;z-index:10;max-width:340px;background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.18);padding:10px 12px;font-size:13px;pointer-events:none}
+.pop[hidden]{display:none}
+.pop h4{margin:0 0 2px;font-size:13px}
+.pop .pp{margin-top:8px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.pop .pt{display:flex;gap:6px;align-items:baseline;margin-top:3px}
+.pop .kind{margin-top:0;font-size:9.5px}
+.heat .dow{background:none;aspect-ratio:auto;text-align:center;padding:0}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start}
+.col>h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 8px;display:flex;justify-content:space-between}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.card.in_progress{border-left:3px solid var(--accent)}
+.card.done,.card.dropped{opacity:.75}
+.card .id{font:11px ui-monospace,Menlo,monospace;color:var(--muted)}
+.card .notes{margin:6px 0 0;padding-left:16px;font-size:13px;color:var(--muted)}
+.card code{font:12px ui-monospace,Menlo,monospace;word-break:break-all}
+.hint{color:var(--muted);font-size:13px;border:1px dashed var(--line);border-radius:10px;padding:10px 12px}
+@media (max-width:760px){.board{grid-template-columns:1fr}}
+.empty{color:var(--muted);padding:40px 0;text-align:center}
+@media (max-width:560px){.commit{grid-template-columns:56px 1fr}.commit .t,.commit .d{display:none}.bar{grid-template-columns:100px 1fr 60px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Personal Work Tracker</h1>
+      <div class="sub" id="gen"></div>
+    </div>
+    <button class="btn" id="theme" title="Toggle theme">Theme</button>
+  </header>
+  <div class="kpi-period" id="kpi-period"></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="controls">
+    <div class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-v="current">Current</button>
+      <button class="tab" role="tab" data-v="day">Day</button>
+      <button class="tab" role="tab" data-v="week">Week</button>
+      <button class="tab" role="tab" data-v="month">Month</button>
+    </div>
+    <input class="search" id="q" type="search" placeholder="Search tasks, repos, commits…">
+  </div>
+  <div class="chips" id="chips"></div>
+  <div id="out"></div>
+  <div class="pop" id="pop" hidden></div>
+</div>
+<script>
+const DATA = /*__DATA__*/null;
+const TZ = "Asia/Kolkata";
+const fmtDay = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-GB", {weekday:"short", day:"numeric", month:"short", year:"numeric", timeZone:"UTC"});
+const fmtShort = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-GB", {day:"numeric", month:"short", timeZone:"UTC"});
+const istDate = iso => new Date(iso).toLocaleDateString("en-CA", {timeZone: TZ});
+const istTime = iso => new Date(iso).toLocaleTimeString("en-GB", {timeZone: TZ, hour:"2-digit", minute:"2-digit"});
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const weekStart = d => { const x = new Date(d + "T12:00:00Z"); const k = (x.getUTCDay() + 6) % 7; x.setUTCDate(x.getUTCDate() - k); return x.toISOString().slice(0,10); };
+const addDays = (d, n) => { const x = new Date(d + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0,10); };
+
+// ---- model: attach commits to tasks; unsummarised commits become synthetic tasks
+const commits = DATA.commits.map(c => ({...c, day: istDate(c.date), time: istTime(c.date)}));
+const firstDay = commits.reduce((m, c) => c.day < m ? c.day : m, "9999");  // DATA.since is only the last scan window
+const used = new Set();
+const tasks = DATA.tasks.map(t => {
+  const cs = t.commits.flatMap(p => commits.filter(c => c.sha.startsWith(p)));
+  cs.forEach(c => used.add(c.sha + c.repo_path));
+  return {...t, cs};
+});
+const orphans = commits.filter(c => !used.has(c.sha + c.repo_path));
+const synth = {};
+orphans.forEach(c => { const k = c.day + "|" + c.project; (synth[k] = synth[k] || {id:"u-"+k, date:c.day, project:c.project, kind:"unsummarised",
+  title:"Not yet summarised", summary:"These commits were made after the last summary run. They get a written summary on the next 5pm run.", details:[], cs:[]}).cs.push(c); });
+tasks.push(...Object.values(synth));
+tasks.forEach(t => {
+  t.ins = t.cs.reduce((a,c) => a + c.ins, 0); t.del = t.cs.reduce((a,c) => a + c.del, 0);
+  t.repos = [...new Set(t.cs.map(c => c.repo))];
+  t.times = t.cs.map(c => c.time).sort();
+});
+const todo = DATA.todo || [];
+const projects = [...new Set([...tasks.map(t => t.project), ...todo.map(i => i.project).filter(Boolean)])].sort();
+const state = {view: "current", projects: new Set(projects), q: ""};
+try { const v = localStorage.getItem("view"); if (["current","day","week","month"].includes(v)) state.view = v; } catch(e){}
+
+const visible = () => tasks.filter(t => state.projects.has(t.project) &&
+  (!state.q || (t.title + t.summary + t.details.join(" ") + t.repos.join(" ") + t.cs.map(c => c.subject).join(" ")).toLowerCase().includes(state.q)))
+  .sort((a,b) => b.date.localeCompare(a.date) || a.project.localeCompare(b.project));
+
+function taskHTML(t) {
+  const commitsHTML = t.cs.slice().sort((a,b) => a.date.localeCompare(b.date)).map(c =>
+    `<div class="commit"><span>${c.sha.slice(0,7)}</span><span class="t">${c.time}</span><span class="s" title="${esc(c.subject)}">${esc(c.subject)}</span><span class="d"><span class="add">+${c.ins}</span> <span class="del">-${c.del}</span></span></div>`).join("");
+  const det = t.details.length ? `<ul>${t.details.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : "";
+  return `<div class="task">
+    <div class="task-top"><span class="kind ${t.kind}">${t.kind}</span><div><div class="task-title">${esc(t.title)}</div><div class="task-sum">${esc(t.summary)}</div></div></div>
+    ${det}
+    <div class="meta"><span>${esc(t.repos.join(", "))}</span><span>${t.cs.length} commit${t.cs.length===1?"":"s"}</span><span>${t.times[0]}${t.times.length>1?"–"+t.times[t.times.length-1]:""} IST</span><span><span class="add">+${t.ins}</span> <span class="del">-${t.del}</span></span></div>
+    <details><summary>Commits</summary><div class="commits">${commitsHTML}</div></details>
+  </div>`;
+}
+const pl = (n, w) => n + " " + w + (n === 1 ? "" : "s");
+const sum = (ts, f) => ts.reduce((a,t) => a + f(t), 0);
+function projBlock(p, ts) {
+  return `<div class="proj"><h3><span>${esc(p)}</span><span>${pl(ts.length,"task")} · ${pl(sum(ts,t=>t.cs.length),"commit")}</span></h3>${ts.map(taskHTML).join("")}</div>`;
+}
+const groupBy = (arr, f) => arr.reduce((m, x) => ((m[f(x)] = m[f(x)] || []).push(x), m), {});
+
+function renderPeriods(keyFn, labelFn) {
+  const g = groupBy(visible(), keyFn);
+  const keys = Object.keys(g).sort().reverse();
+  if (!keys.length) return `<div class="empty">No tasks match the current filters.</div>`;
+  return keys.map(k => {
+    const ts = g[k], byP = groupBy(ts, t => t.project);
+    return `<section class="group"><h2>${labelFn(k)} <small>${pl(ts.length,"task")} · ${pl(sum(ts,t=>t.cs.length),"commit")} · ${pl(new Set(ts.map(t=>t.date)).size,"active day")}</small></h2>
+      ${Object.keys(byP).sort().map(p => projBlock(p, byP[p].sort((a,b)=>a.times[0].localeCompare(b.times[0])))).join("")}</section>`;
+  }).join("");
+}
+function rollup(ts) {
+  const byP = groupBy(ts, t => t.project), max = Math.max(1, ...Object.values(byP).map(a => sum(a,t=>t.cs.length)));
+  return `<div class="rollup">${Object.keys(byP).sort().map(p => { const n = sum(byP[p], t=>t.cs.length);
+    return `<div class="bar"><span>${esc(p)}</span><i style="width:${Math.max(3, n/max*100)}%"></i><span>${n} commits</span></div>`; }).join("")}</div>`;
+}
+function heatmap(ts, monthKey) {
+  const per = {}; ts.forEach(t => per[t.date] = (per[t.date]||0) + t.cs.length);
+  const first = monthKey + "-01", cells = [];
+  const lead = (new Date(first + "T12:00:00Z").getUTCDay() + 6) % 7;
+  for (let i = 0; i < lead; i++) cells.push(`<div style="visibility:hidden"></div>`);
+  const dim = new Date(Date.UTC(+monthKey.slice(0,4), +monthKey.slice(5), 0)).getUTCDate();
+  const peak = Math.max(1, ...Object.values(per));
+  for (let d = 1; d <= dim; d++) { const k = monthKey + "-" + String(d).padStart(2,"0"), n = per[k] || 0;
+    const l = !n ? 0 : Math.min(4, Math.ceil(n / peak * 4));
+    cells.push(`<div data-l="${l}" data-day="${k}" tabindex="0" aria-label="${k}: ${n} commits">${d}</div>`); }
+  return `<div class="heat">${["M","T","W","T","F","S","S"].map(x=>`<div class="dow">${x}</div>`).join("")}${cells.join("")}</div>`;
+}
+function renderRollups(keyFn, labelFn, withHeat) {
+  const vis = visible(), g = groupBy(vis, keyFn), keys = Object.keys(g).sort().reverse();
+  if (!keys.length) return `<div class="empty">No tasks match the current filters.</div>`;
+  return keys.map(k => { const ts = g[k], byP = groupBy(ts, t => t.project);
+    return `<section class="group"><h2>${labelFn(k)} <small>${pl(ts.length,"task")} · ${pl(sum(ts,t=>t.cs.length),"commit")} · ${pl(new Set(ts.map(t=>t.date)).size,"active day")} · <span class="add">+${sum(ts,t=>t.ins)}</span> <span class="del">-${sum(ts,t=>t.del)}</span></small></h2>
+      ${withHeat ? heatmap(ts, k) : ""}${rollup(ts)}
+      ${Object.keys(byP).sort().map(p => projBlock(p, byP[p].sort((a,b)=>b.date.localeCompare(a.date)))).join("")}</section>`; }).join("");
+}
+
+const ago = iso => { const m = Math.round((Date.now() - new Date(iso)) / 60000);
+  return m < 60 ? m + "m ago" : m < 1440 ? Math.round(m/60) + "h ago" : Math.round(m/1440) + "d ago"; };
+function renderCurrent() {
+  const vis = todo.filter(i => (!i.project || state.projects.has(i.project)) &&
+    (!state.q || (i.title + " " + (i.project||"") + " " + (i.repo||"") + " " + i.notes.map(n => n.text).join(" ")).toLowerCase().includes(state.q)));
+  const weekAgo = Date.now() - 7 * 864e5;
+  const cols = [["In progress", vis.filter(i => i.status === "in_progress")], ["To do", vis.filter(i => i.status === "todo")],
+    ["Done · last 7 days", vis.filter(i => i.status === "done" && new Date(i.closed_at) >= weekAgo)]];
+  const card = i => `<div class="card ${i.status}">
+      <div class="id">${i.id} · ${esc([i.project, i.repo].filter(Boolean).join(" / ") || "no project")}</div>
+      <div class="task-title">${esc(i.title)}</div>
+      <div class="meta"><span>added ${ago(i.created_at)}</span>${i.status !== "todo" ? `<span>${i.closed_at ? "closed " + ago(i.closed_at) : "updated " + ago(i.updated_at)}</span>` : ""}</div>
+      ${i.plan ? `<div class="meta">plan: <code>${esc(i.plan)}</code></div>` : ""}
+      ${i.notes.length ? `<ul class="notes">${i.notes.slice(-3).map(n => `<li>${esc(n.text)} <span class="id">${ago(n.at)}</span></li>`).join("")}</ul>` : ""}
+    </div>`;
+  const hint = `<div class="hint">Nothing here. Add one with <code>tracker add "Title" -p myproject -r my-repo</code></div>`;
+  return `<div class="board">${cols.map(([h, items]) => `<section class="col"><h2><span>${h}</span><span>${items.length}</span></h2>${items.map(card).join("") || hint}</section>`).join("")}</div>`;
+}
+function render() {
+  document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.v === state.view));
+  const o = document.getElementById("out");
+  if (state.view === "current") {
+    o.innerHTML = renderCurrent();
+  } else if (state.view === "day") {
+    const g = groupBy(visible(), t => t.date), keys = Object.keys(g).sort().reverse();
+    o.innerHTML = keys.length ? keys.map(d => { const ts = g[d], byP = groupBy(ts, t => t.project);
+      return `<section class="group"><h2>${fmtDay(d)} <small>${pl(ts.length,"task")} · ${pl(sum(ts,t=>t.cs.length),"commit")}</small></h2>
+        ${Object.keys(byP).sort().map(p => projBlock(p, byP[p].sort((a,b)=>a.times[0].localeCompare(b.times[0])))).join("")}</section>`; }).join("")
+      : `<div class="empty">No tasks match the current filters.</div>`;
+  } else if (state.view === "week") {
+    o.innerHTML = renderRollups(t => weekStart(t.date), k => `Week of ${fmtShort(k)} – ${fmtShort(addDays(k,6))}`, false);
+  } else {
+    o.innerHTML = renderRollups(t => t.date.slice(0,7), k => new Date(k + "-15T12:00:00Z").toLocaleDateString("en-GB",{month:"long",year:"numeric",timeZone:"UTC"}), true);
+  }
+  // KPIs cover the period the view is about: today / this week / this month; Current = whole range
+  const today = istDate(new Date().toISOString()), wk = weekStart(today);
+  const [inPeriod, label] = {
+    day: [t => t.date === today, `Today · ${fmtDay(today)}`],
+    week: [t => weekStart(t.date) === wk, `This week · ${fmtShort(wk)} – ${fmtShort(addDays(wk, 6))}`],
+    month: [t => t.date.slice(0, 7) === today.slice(0, 7), `This month · ${new Date(today + "T12:00:00Z").toLocaleDateString("en-GB", {month:"long", year:"numeric", timeZone:"UTC"})}`],
+    current: [() => true, `All time · since ${fmtShort(firstDay)}`],
+  }[state.view];
+  document.getElementById("kpi-period").textContent = label;
+  const vis = visible().filter(inPeriod), days = new Set(vis.map(t => t.date));
+  document.getElementById("kpis").innerHTML = [
+    ...[[sum(vis,t=>t.cs.length), "commit"], [vis.length, "task"], [new Set(vis.flatMap(t=>t.repos)).size, "repo"],
+    [new Set(vis.map(t=>t.project)).size, "project"], [days.size, "active day"]].map(([n, w]) => [n, pl(n, w).replace(/^\d+ /, "")]),
+    [`<span class="add">+${sum(vis,t=>t.ins).toLocaleString()}</span> <span class="del">-${sum(vis,t=>t.del).toLocaleString()}</span>`, "lines"]]
+    .map(([n,l]) => `<div class="kpi"><b>${n}</b><span>${l}</span></div>`).join("");
+}
+
+document.getElementById("gen").textContent = `Commits by ${DATA.author_pattern} · since ${firstDay} · refreshed ${new Date(DATA.generated_at).toLocaleString("en-GB",{timeZone:TZ})} IST`;
+document.getElementById("tabs").addEventListener("click", e => { const b = e.target.closest(".tab"); if (!b) return; state.view = b.dataset.v; try { localStorage.setItem("view", state.view); } catch(_){} render(); });
+document.getElementById("q").addEventListener("input", e => { state.q = e.target.value.trim().toLowerCase(); render(); });
+document.getElementById("chips").innerHTML = projects.map(p => `<button class="chip" aria-pressed="true" data-p="${esc(p)}">${esc(p)}</button>`).join("");
+document.getElementById("chips").addEventListener("click", e => { const b = e.target.closest(".chip"); if (!b) return;
+  const on = b.getAttribute("aria-pressed") === "true"; b.setAttribute("aria-pressed", String(!on));
+  on ? state.projects.delete(b.dataset.p) : state.projects.add(b.dataset.p); render(); });
+document.getElementById("theme").addEventListener("click", () => {
+  const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  r.dataset.theme = dark ? "light" : "dark"; });
+// Month heatmap: hover / focus / tap a day to see what was done that day
+const pop = document.getElementById("pop");
+function showPop(cell) {
+  const day = cell.dataset.day, ts = visible().filter(t => t.date === day);
+  const n = sum(ts, t => t.cs.length), byP = groupBy(ts, t => t.project);
+  pop.innerHTML = `<h4>${fmtDay(day)}</h4><div class="sub">${n ? pl(n, "commit") + " · " + pl(ts.length, "task") : "No commits"}</div>` +
+    Object.keys(byP).sort().map(p => `<div class="pp">${esc(p)}</div>` +
+      byP[p].map(t => `<div class="pt"><span class="kind ${t.kind}">${t.kind}</span><span>${esc(t.title)}</span></div>`).join("")).join("");
+  pop.hidden = false;
+  const r = cell.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight, m = 8;
+  let x = r.right + m, y = r.top;
+  if (x + w > innerWidth - m) x = Math.max(m, r.left - w - m);   // flip left near the right edge
+  if (y + h > innerHeight - m) y = Math.max(m, innerHeight - h - m);
+  pop.style.left = x + "px"; pop.style.top = y + "px";
+}
+const hidePop = () => { pop.hidden = true; };
+const out = document.getElementById("out");
+out.addEventListener("mouseover", e => { const c = e.target.closest("[data-day]"); c ? showPop(c) : hidePop(); });
+out.addEventListener("mouseleave", hidePop);
+out.addEventListener("focusin", e => { const c = e.target.closest("[data-day]"); if (c) showPop(c); });
+out.addEventListener("focusout", hidePop);
+out.addEventListener("click", e => { const c = e.target.closest("[data-day]"); if (c) showPop(c); });  // touch
+addEventListener("scroll", hidePop, {passive: true});
+render();
+</script>
+</body>
+</html>

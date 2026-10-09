@@ -1,0 +1,10 @@
+#!/bin/bash
+# Personal work tracker. `tracker` opens it; `tracker refresh` rescans git first;
+# add/start/done/drop/note/todo manage the current-tasks list (see todo.py).
+# Install: ln -s "$PWD/bin/tracker" ~/.local/bin/tracker
+D="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+case "$1" in
+  ""|open) open "$D/dashboard.html" ;;
+  refresh) echo "Refreshing (about a minute)..."; "$D/refresh.sh" && tail -4 "$D/refresh.log"; open "$D/dashboard.html" ;;
+  *) exec python3 "$D/todo.py" "$@" ;;
+esac

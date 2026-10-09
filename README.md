@@ -1,0 +1,58 @@
+# Personal Work Dashboard
+
+A local day / week / month view of your own git commits across every repo in a folder. Commits are grouped into tasks with short written summaries, and there is a "Current" board for work in progress.
+
+- The dashboard is one self-contained HTML file. It works offline and needs no server.
+- Summaries for new commits are written by `claude -p` (Claude Code's non-interactive mode) with no tools enabled. Its JSON output is validated before it's saved.
+- Everything stays on your machine. Your data files are gitignored.
+
+## Requirements
+
+- macOS (uses `open` and launchd); Python 3.9+
+- [Claude Code](https://claude.com/claude-code), logged in. Only needed for automatic summaries.
+
+## Setup
+
+```bash
+cp config.example.json config.json        # set "root" (folder with your repos) and every email you commit as
+echo '{"tasks": []}' > tasks.json
+python3 scan.py --since 2026-09-01        # first scan: pick how far back to go
+./refresh.sh                              # summarise and build dashboard.html
+ln -s "$PWD/bin/tracker" ~/.local/bin/tracker   # optional CLI (any directory on your PATH)
+```
+
+Daily refresh at 17:00 via launchd. It runs on wake if the Mac was asleep, and it can reach the Keychain where Claude Code keeps its login, which cron cannot:
+
+```bash
+sed "s|__DIR__|$PWD|g" launchd/refresh.plist.example > ~/Library/LaunchAgents/com.personal-work-dashboard.refresh.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.personal-work-dashboard.refresh.plist
+```
+
+## Using it
+
+```bash
+tracker                      # open the dashboard
+tracker refresh              # rescan git, summarise, rebuild, open
+tracker add "Title" -p myproject -r my-repo [--plan path]   # prints an id, e.g. t-0007
+tracker start t-0007 | tracker done t-0007 | tracker drop t-0007
+tracker note t-0007 "tests passing"
+tracker todo [--all]
+```
+
+- **Views:** Current (board), Day, Week and Month. The numbers at the top cover the selected view's period (today, this week, this month, or everything), and they follow the project filter and search.
+- **Month heatmap:** hover over a day (or tap or tab to it) to see that day's tasks.
+- A *project* is a top-level folder under `root`, and a *repo* is a git repo inside it, up to 3 levels deep.
+
+To have Claude Code keep the Current board in sync, add a rule to your `~/.claude/CLAUDE.md` telling it to run `tracker add` / `start` / `done` when work starts and ends.
+
+## How it works
+
+| File | Role |
+|---|---|
+| `scan.py` | Reads commits by your emails on local and remote branches (14-day lookback by default) and merges them into `commits.json`. Older history is kept. |
+| `summarise.py` | Sends commits that no task covers yet to `claude -p --model sonnet` and asks for JSON. It checks that every commit appears exactly once, with the right date and project, then appends to `tasks.json`. On failure nothing is written, and the commits show as "unsummarised". |
+| `todo.py` | The current-tasks list (`todo.json`). Each change takes a file lock, writes atomically and rebuilds the page. |
+| `build.py` | Inlines the JSON into `template.html` and writes `dashboard.html`. Builds are serialised so the page is never stale. |
+| `refresh.sh` | scan, then summarise, then build. Logs to `refresh.log`. |
+
+`tasks.json` is plain JSON, so you can edit summaries by hand and run `python3 build.py`. Days are grouped in IST (`Asia/Kolkata`); the timezone is set in `template.html` and `summarise.py`.
