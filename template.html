@@ -84,11 +84,51 @@ summary{cursor:pointer;color:var(--accent);font-size:13px}
 .pop .pt{display:flex;gap:6px;align-items:baseline;margin-top:3px}
 .pop .kind{margin-top:0;font-size:9.5px}
 .heat .dow{background:none;aspect-ratio:auto;text-align:center;padding:0}
-.board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start}
+.board{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;align-items:start}
+.done-log{margin-top:22px}
+.done-log>h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 8px;display:flex;justify-content:space-between}
+.dgroup{background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden}
+.dgroup>summary{list-style:none;cursor:pointer;padding:9px 14px;display:flex;justify-content:space-between;font-size:13px;font-weight:600}
+.dgroup>summary::-webkit-details-marker{display:none}
+.dgroup>summary::before{content:"▸";color:var(--muted);margin-right:8px}
+.dgroup[open]>summary::before{content:"▾"}
+.dgroup>summary span:first-child{margin-right:auto}
+.dgroup>summary .n{color:var(--muted);font-weight:400}
+.row{display:grid;grid-template-columns:18px minmax(0,1fr) auto auto auto;gap:12px;align-items:baseline;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:8px 14px;cursor:pointer;color:var(--text);font:inherit;font-size:14px}
+.row:hover,.row:focus-visible{background:var(--surface2);outline:none}
+.row .ck{color:var(--feature)}
+.row .tt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .m{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+[data-todo],[data-task]{cursor:pointer}
+.card:hover,.task:hover{background:var(--surface2)}
+.card:focus-visible,.task:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.more{font-size:12px;color:var(--accent);margin-top:4px}
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.18);z-index:15;opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;height:100vh;width:min(520px,100%);background:var(--surface);border-left:1px solid var(--line);
+  box-shadow:-12px 0 32px rgba(0,0,0,.14);z-index:16;transform:translateX(100%);transition:transform .22s ease;display:flex;flex-direction:column}
+.drawer.on{transform:none}
+.drawer header{display:flex;align-items:flex-start;gap:10px;padding:16px 18px 12px;border-bottom:1px solid var(--line);margin:0}
+.drawer header h2{margin:2px 0 0;font-size:17px;line-height:1.35;flex:1}
+.drawer .body{overflow:auto;padding:14px 18px 32px}
+.drawer h3{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 0 6px}
+.drawer .facts{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px}
+.drawer .facts dt{color:var(--muted)}.drawer .facts dd{margin:0;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-radius:999px;padding:1px 9px;border:1px solid var(--line);color:var(--muted)}
+.pill.in_progress{border-color:var(--accent);color:var(--accent)}.pill.done{color:var(--feature)}
+.tl{list-style:none;margin:0;padding:0 0 0 14px;border-left:2px solid var(--line)}
+.tl li{position:relative;margin:0 0 10px;font-size:13.5px}
+.tl li::before{content:"";position:absolute;left:-20px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--surface);border:2px solid var(--accent)}
+.tl .when{display:block;font-size:11.5px;color:var(--muted)}
+.drawer .commits.full .commit{grid-template-columns:62px 44px 1fr auto}
+.drawer .commits.full .s{white-space:normal}
+.sib{display:block;width:100%;text-align:left;background:none;border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin-bottom:6px;color:var(--text);font:inherit;font-size:13px;cursor:pointer}
+.sib:hover{background:var(--surface2)}.sib.cur{border-color:var(--accent)}
+.sib .m{color:var(--muted);font-size:12px}
+@media (max-width:760px){.board{grid-template-columns:1fr}.row{grid-template-columns:18px minmax(0,1fr) auto}.row .m.c,.row .m.r{display:none}}
 .col>h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 8px;display:flex;justify-content:space-between}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px}
 .card.in_progress{border-left:3px solid var(--accent)}
-.card.done,.card.dropped{opacity:.75}
 .card .id{font:11px ui-monospace,Menlo,monospace;color:var(--muted)}
 .card .notes{margin:6px 0 0;padding-left:16px;font-size:13px;color:var(--muted)}
 .card code{font:12px ui-monospace,Menlo,monospace;word-break:break-all}
@@ -159,6 +199,11 @@ kbd{font:11px ui-monospace,Menlo,monospace;border:1px solid var(--line);border-b
   <div id="out"></div>
   <div class="keys"><kbd>c</kbd> <kbd>d</kbd> <kbd>w</kbd> <kbd>m</kbd> views · <kbd>←</kbd> <kbd>→</kbd> period · <kbd>/</kbd> search · <kbd>Esc</kbd> close / clear</div>
   <div class="pop" id="pop" hidden></div>
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer" aria-hidden="true" role="dialog" aria-labelledby="dr-title">
+    <header><h2 id="dr-title"></h2><button class="btn" id="dr-close" aria-label="Close details">✕</button></header>
+    <div class="body" id="dr-body"></div>
+  </aside>
   <div class="modal" id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div>
       <h2 id="modal-title"></h2>
@@ -270,7 +315,7 @@ function commitRows(cs) {
 }
 function taskHTML(t, showDate) {
   const det = t.details.length ? `<ul>${t.details.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : "";
-  return `<div class="task">
+  return `<div class="task" data-task="${esc(t.id)}" tabindex="0">
     <div class="task-top"><span class="kind ${t.kind}">${t.kind}</span><div><div class="task-title">${esc(t.title)}</div><div class="task-sum">${esc(t.summary)}</div></div></div>
     ${det}
     <div class="meta">${showDate ? `<span>${fmtDayShort(t.date)}</span>` : `<span class="tag">${esc(t.thread)}</span>`}<span>${esc(t.repos.join(", "))}</span><span>${pl(t.cs.length, "commit")}</span><span>${t.times[0]}${t.times.length>1?"–"+t.times[t.times.length-1]:""} IST</span><span><span class="add">+${t.ins}</span> <span class="del">-${t.del}</span></span></div>
@@ -339,21 +384,92 @@ const todoVisible = () => todo.filter(i => (!i.project || state.projects.has(i.p
 const boardCols = () => { const vis = todoVisible(), weekAgo = Date.now() - 7 * 864e5;
   return [["In progress", vis.filter(i => i.status === "in_progress")], ["To do", vis.filter(i => i.status === "todo")],
     ["Done · last 7 days", vis.filter(i => i.status === "done" && new Date(i.closed_at) >= weekAgo)]]; };
+const fmtStamp = iso => new Date(iso).toLocaleString("en-GB", {timeZone: TZ, weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
+const where = i => [i.project, i.repo].filter(Boolean).join(" / ") || "no project";
 function renderCurrent() {
   const card = i => { const start = i.started_at || i.created_at;
-    const link = i.status === "todo" ? "" : i.project ? `<div class="meta"><span>${pl(i.cs.length, "commit")}${i.status === "in_progress" ? " so far" : ""}</span>${i.cs.length ? `<span><span class="add">+${sum(i.cs,c=>c.ins)}</span> <span class="del">-${sum(i.cs,c=>c.del)}</span></span>` : ""}<span>${i.closed_at ? dur(start, i.closed_at) + " start → done" : dur(start, new Date().toISOString()) + " in progress"}</span></div>` : "";
-    return `<div class="card ${i.status}">
-      <div class="id">${i.id} · ${esc([i.project, i.repo].filter(Boolean).join(" / ") || "no project")}</div>
+    const link = i.status === "todo" || !i.project ? "" : `<div class="meta"><span>${pl(i.cs.length, "commit")}${i.status === "in_progress" ? " so far" : ""}</span>${i.cs.length ? `<span><span class="add">+${sum(i.cs,c=>c.ins)}</span> <span class="del">-${sum(i.cs,c=>c.del)}</span></span>` : ""}<span>${dur(start, new Date().toISOString())} in progress</span></div>`;
+    const last = i.notes[i.notes.length - 1];
+    return `<div class="card ${i.status}" data-todo="${esc(i.id)}" tabindex="0">
+      <div class="id">${i.id} · ${esc(where(i))}</div>
       <div class="task-title">${esc(i.title)}</div>
-      <div class="meta"><span>added ${ago(i.created_at)}</span>${i.status !== "todo" ? `<span>${i.closed_at ? "closed " + ago(i.closed_at) : "updated " + ago(i.updated_at)}</span>` : ""}</div>
+      <div class="meta"><span>added ${ago(i.created_at)}</span>${i.status !== "todo" ? `<span>updated ${ago(i.updated_at)}</span>` : ""}</div>
       ${link}
-      ${i.plan ? `<div class="meta">plan: <code>${esc(i.plan)}</code></div>` : ""}
-      ${i.notes.length ? `<ul class="notes">${i.notes.slice(-3).map(n => `<li>${esc(n.text)} <span class="id">${ago(n.at)}</span></li>`).join("")}</ul>` : ""}
-      ${i.cs.length ? `<details><summary>Commits</summary><div class="commits">${commitRows(i.cs)}</div></details>` : ""}
+      ${last ? `<ul class="notes"><li>${esc(last.text)} <span class="id">${ago(last.at)}</span></li></ul>` : ""}
+      ${i.notes.length > 1 || i.plan || i.cs.length ? `<div class="more">${[i.notes.length > 1 ? `+${i.notes.length - 1} more note${i.notes.length > 2 ? "s" : ""}` : "", i.plan ? "plan" : "", i.cs.length ? pl(i.cs.length, "commit") : ""].filter(Boolean).join(" · ")} — open details</div>` : ""}
     </div>`; };
+  const [[h1, prog], [h2, todoItems], [h3, done]] = boardCols();
   const hint = `<div class="hint">Nothing here. Add one with <code>tracker add "Title" -p myproject -r my-repo</code></div>`;
-  return `<div class="board">${boardCols().map(([h, items]) => `<section class="col"><h2><span>${h}</span><span>${items.length}</span></h2>${items.map(card).join("") || hint}</section>`).join("")}</div>`;
+  const board = `<div class="board">${[[h1, prog], [h2, todoItems]].map(([h, items]) => `<section class="col"><h2><span>${h}</span><span>${items.length}</span></h2>${items.map(card).join("") || hint}</section>`).join("")}</div>`;
+  // done: one line per task, grouped by the IST day it closed; today and yesterday open
+  const yday = addDays(TODAY, -1), byDay = groupBy(done, i => istDate(i.closed_at));
+  const row = i => `<button class="row" data-todo="${esc(i.id)}"><span class="ck">✓</span><span class="tt">${esc(i.title)}</span><span class="m r">${esc(where(i))}</span><span class="m c">${i.project ? pl(i.cs.length, "commit") : ""}</span><span class="m">${istTime(i.closed_at)}</span></button>`;
+  const groups = Object.keys(byDay).sort().reverse().map(d => {
+    const items = byDay[d].sort((a,b) => b.closed_at.localeCompare(a.closed_at));
+    const label = d === TODAY ? "Today" : d === yday ? "Yesterday" : fmtDayShort(d);
+    return `<details class="dgroup" data-day-group="${d}" ${d >= yday ? "open" : ""}><summary><span>${label}</span><span class="n">${items.length} done</span></summary>${items.map(row).join("")}</details>`; }).join("");
+  return board + `<section class="done-log"><h2><span>${h3}</span><span>${done.length}</span></h2>${groups || `<div class="hint">Nothing finished in the last 7 days.</div>`}</section>`;
 }
+
+// ---- detail drawer: everything about one to-do task or one summarised task
+const drawer = document.getElementById("drawer"), scrim = document.getElementById("scrim");
+let drawerOpener = null;
+function openDrawer(html, title, opener) {
+  document.getElementById("dr-title").textContent = title;
+  document.getElementById("dr-body").innerHTML = html;
+  document.getElementById("dr-body").scrollTop = 0;
+  if (!drawer.classList.contains("on")) drawerOpener = opener || document.activeElement;
+  drawer.classList.add("on"); scrim.classList.add("on"); drawer.setAttribute("aria-hidden", "false");
+  hidePop(); document.getElementById("dr-close").focus();
+}
+function closeDrawer() {
+  if (!drawer.classList.contains("on")) return false;
+  drawer.classList.remove("on"); scrim.classList.remove("on"); drawer.setAttribute("aria-hidden", "true");
+  if (drawerOpener && document.contains(drawerOpener)) drawerOpener.focus();
+  return true;
+}
+const drawerOpen = () => drawer.classList.contains("on");
+function todoDetail(i) {
+  const start = i.started_at || i.created_at, label = {in_progress: "in progress", todo: "to do", done: "done", dropped: "dropped"}[i.status];
+  const facts = [["Status", `<span class="pill ${i.status}">${label}</span>`], ["Id", i.id], ["Where", esc(where(i))], ["Added", fmtStamp(i.created_at)]];
+  if (i.status !== "todo") facts.push(["Started", fmtStamp(start) + (i.started_at ? "" : " (added time)")]);
+  if (i.closed_at) facts.push([i.status === "dropped" ? "Dropped" : "Finished", fmtStamp(i.closed_at)], ["Took", dur(start, i.closed_at)]);
+  else if (i.status === "in_progress") facts.push(["Running", dur(start, new Date().toISOString())]);
+  if (i.cs.length) facts.push(["Commits", `${i.cs.length} · <span class="add">+${sum(i.cs,c=>c.ins)}</span> <span class="del">-${sum(i.cs,c=>c.del)}</span>`]);
+  let h = `<dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>`;
+  if (i.plan) h += `<h3>Plan</h3><code>${esc(i.plan)}</code>`;
+  h += `<h3>Notes · ${i.notes.length}</h3>` + (i.notes.length ? `<ol class="tl">${i.notes.slice().reverse().map(n => `<li><span class="when">${fmtStamp(n.at)}</span>${esc(n.text)}</li>`).join("")}</ol>` : `<div class="tag">No notes.</div>`);
+  if (i.project && i.status !== "todo") h += `<h3>Commits while open · ${i.cs.length}</h3>` + (i.cs.length ? `<div class="commits full">${commitRows(i.cs)}</div>` : `<div class="tag">No commits in ${esc(where(i))} between start and ${i.closed_at ? "finish" : "now"}.</div>`);
+  return h;
+}
+function taskDetail(t) {
+  const facts = [["Kind", `<span class="kind ${t.kind}">${t.kind}</span>`], ["Day", fmtDay(t.date)], ["Project", esc(t.project)],
+    ["Repos", esc(t.repos.join(", "))], ["Time", `${t.times[0]}${t.times.length > 1 ? "–" + t.times[t.times.length-1] : ""} IST`],
+    ["Commits", `${t.cs.length} · <span class="add">+${t.ins}</span> <span class="del">-${t.del}</span>`], ["Thread", esc(t.thread)]];
+  let h = `<dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>`;
+  h += `<h3>Summary</h3><div>${esc(t.summary)}</div>`;
+  if (t.details.length) h += `<h3>Details</h3><ul>${t.details.map(d => `<li>${esc(d)}</li>`).join("")}</ul>`;
+  const sibs = tasks.filter(x => x.thread === t.thread && x.project === t.project).sort((a,b) => a.date.localeCompare(b.date));
+  if (sibs.length > 1) h += `<h3>Thread · ${pl(sibs.length, "task")}</h3>` + sibs.map(x => `<button class="sib ${x.id === t.id ? "cur" : ""}" data-task="${esc(x.id)}">${esc(x.title)} <span class="m">· ${fmtDayShort(x.date)} · ${pl(x.cs.length, "commit")}</span></button>`).join("");
+  h += `<h3>Commits · ${t.cs.length}</h3><div class="commits full">${commitRows(t.cs)}</div>`;
+  return h;
+}
+function openItem(el) {
+  if (el.dataset.todo) { const i = todo.find(x => x.id === el.dataset.todo); if (i) openDrawer(todoDetail(i), i.title, el); }
+  else { const t = tasks.find(x => x.id === el.dataset.task); if (t) openDrawer(taskDetail(t), t.title, el); }
+}
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-todo],[data-task]");
+  if (!el || e.target.closest("summary, details > :not(summary) a")) return;   // let the Commits toggle work
+  if (e.target.closest(".task details")) return;
+  openItem(el);
+});
+document.addEventListener("keydown", e => {
+  if (e.key !== "Enter") return; const el = e.target.closest && e.target.closest("[data-todo],[data-task]");
+  if (el && el.tagName !== "BUTTON") { e.preventDefault(); openItem(el); }
+});
+document.getElementById("dr-close").addEventListener("click", closeDrawer);
+scrim.addEventListener("click", closeDrawer);
 
 function render() {
   const v = state.view, k = state.anchor[v];
@@ -507,10 +623,10 @@ addEventListener("scroll", hidePop, {passive: true});
 document.addEventListener("keydown", e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === "Escape") {
-    if (!modal.hidden) closeModal(); else if (document.activeElement === q || state.q) { q.value = ""; state.q = ""; q.blur(); render(); }
+    if (!modal.hidden) closeModal(); else if (closeDrawer()) {} else if (document.activeElement === q || state.q) { q.value = ""; state.q = ""; q.blur(); render(); }
     hidePop(); return;
   }
-  if (!modal.hidden || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if (!modal.hidden || drawerOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
   const views = {c: "current", d: "day", w: "week", m: "month"};
   if (views[e.key]) setView(views[e.key]);
   else if (e.key === "ArrowLeft") step(-1);
