@@ -6,5 +6,9 @@ D="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 case "$1" in
   ""|open) open "$D/dashboard.html" ;;
   refresh) echo "Refreshing (about a minute)..."; "$D/refresh.sh" && tail -4 "$D/refresh.log"; open "$D/dashboard.html" ;;
+  desk)
+    if [ "$2" = "refresh" ]; then echo "Refreshing (about a minute)..."; "$D/refresh.sh" && tail -4 "$D/refresh.log"; fi
+    if [ ! -f "$D/desk.html" ]; then echo "desk not built yet: cd $D/desk && npm install && npm run assets && npm run build && python3 $D/build.py"; exit 1; fi
+    open "$D/desk.html" ;;
   *) exec python3 "$D/todo.py" "$@" ;;
 esac

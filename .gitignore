@@ -16,3 +16,11 @@ __pycache__/
 .venv/
 .pytest_cache/
 .superpowers/
+
+# desk: personal assignments and generated output
+/inks.json
+/desk.html
+/desk-template.html
+desk/node_modules/
+desk/assets/
+desk/dev-data.json

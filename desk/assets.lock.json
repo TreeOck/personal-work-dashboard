@@ -1,0 +1,112 @@
+{
+ "textures/brown_leather_diffuse.jpg": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_leather/brown_leather_albedo_1k.jpg",
+  "md5": "080b3bf1372766ff2c7ff121ed07b5e8",
+  "size": 503348
+ },
+ "textures/brown_leather_nor_gl.jpg": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_leather/brown_leather_nor_gl_1k.jpg",
+  "md5": "b63ae0121a415c23d74eed0b07fc6065",
+  "size": 863280
+ },
+ "textures/brown_leather_rough.jpg": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_leather/brown_leather_rough_1k.jpg",
+  "md5": "0f3a0148c8d2d25fbeca67e64e79bca0",
+  "size": 686142
+ },
+ "hdri/cabin.hdr": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/cabin_1k.hdr",
+  "md5": "7aa2256a959d9fe7d908d7de20c936cf",
+  "size": 1660023
+ },
+ "models/desk_lamp_arm_01/desk_lamp_arm_01.gltf": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/desk_lamp_arm_01/desk_lamp_arm_01_1k.gltf",
+  "md5": "29b204485d30e66ee3f183ef45bf4bb3",
+  "size": 4453
+ },
+ "models/desk_lamp_arm_01/textures/desk_lamp_arm_01_nor_gl_1k.jpg": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/desk_lamp_arm_01/desk_lamp_arm_01_nor_gl_1k.jpg",
+  "md5": "5aabbfe920ea6726d5299be7d6224551",
+  "size": 651826
+ },
+ "models/desk_lamp_arm_01/textures/desk_lamp_arm_01_arm_1k.jpg": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/desk_lamp_arm_01/desk_lamp_arm_01_arm_1k.jpg",
+  "md5": "0b887af80f561216baa3da94d001d51a",
+  "size": 780379
+ },
+ "models/desk_lamp_arm_01/textures/desk_lamp_arm_01_diff_1k.jpg": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/desk_lamp_arm_01/desk_lamp_arm_01_diff_1k.jpg",
+  "md5": "a5c1bf5465da39ca6ca9039dd4e3fd66",
+  "size": 702522
+ },
+ "models/desk_lamp_arm_01/desk_lamp_arm_01.bin": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/desk_lamp_arm_01/desk_lamp_arm_01.bin",
+  "md5": "29ffa5bb6bee35b066e46073124fee1a",
+  "size": 736804
+ },
+ "models/potted_plant_04/potted_plant_04.gltf": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/potted_plant_04/potted_plant_04_1k.gltf",
+  "md5": "077d481764145f6e5e256593aab427bb",
+  "size": 7081
+ },
+ "models/potted_plant_04/potted_plant_04.bin": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/potted_plant_04/potted_plant_04.bin",
+  "md5": "03774ca8e28e2aa30fb26cb68d5e0093",
+  "size": 241800
+ },
+ "models/potted_plant_04/textures/potted_plant_04_nor_gl_1k.jpg": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/potted_plant_04/potted_plant_04_nor_gl_1k.jpg",
+  "md5": "1c0b87906fd92c7b7ce5508110976474",
+  "size": 817786
+ },
+ "models/potted_plant_04/textures/potted_plant_04_arm_1k.jpg": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/potted_plant_04/potted_plant_04_arm_1k.jpg",
+  "md5": "ed0030c6085bba45b6f63f3043b0b237",
+  "size": 478413
+ },
+ "models/potted_plant_04/textures/potted_plant_04_diff_1k.jpg": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/potted_plant_04/potted_plant_04_diff_1k.jpg",
+  "md5": "4a72fb3667fd3686ca4014f6676f59c4",
+  "size": 577545
+ },
+ "fonts/Caveat.ttf": {
+  "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/caveat/Caveat%5Bwght%5D.ttf",
+  "md5": "ccf2f844ded8bfd50efbed532a60d068",
+  "size": 403648
+ },
+ "fonts/Caveat-OFL.txt": {
+  "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/caveat/OFL.txt",
+  "md5": "f041ff6e4f093a88573d3306e41037af",
+  "size": 4385
+ },
+ "fonts/SpecialElite.ttf": {
+  "url": "https://raw.githubusercontent.com/google/fonts/main/apache/specialelite/SpecialElite-Regular.ttf",
+  "md5": "380c56cefb3c2b2e0b42668dda82f233",
+  "size": 166180
+ },
+ "fonts/SpecialElite-LICENSE.txt": {
+  "url": "https://raw.githubusercontent.com/google/fonts/main/apache/specialelite/LICENSE.txt",
+  "md5": "3b83ef96387f14655fc854ddc3c6bd57",
+  "size": 11358
+ },
+ "hdri/loft_hall.hdr": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/photo_studio_loft_hall_1k.hdr",
+  "md5": "bc32a903ad3ac00bfcea0ec815ef4cea",
+  "size": 1640243
+ },
+ "textures/smoked_walnut_veneer_diffuse.jpg": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/smoked_walnut_veneer/smoked_walnut_veneer_diff_2k.jpg",
+  "md5": "9a4cd76d1eda59b6d2b8ec88214658d2",
+  "size": 2136850
+ },
+ "textures/smoked_walnut_veneer_nor_gl.jpg": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/smoked_walnut_veneer/smoked_walnut_veneer_nor_gl_2k.jpg",
+  "md5": "8dac5b00f7b2f7c6108845646728ff7a",
+  "size": 1679452
+ },
+ "textures/smoked_walnut_veneer_rough.jpg": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/smoked_walnut_veneer/smoked_walnut_veneer_rough_1k.jpg",
+  "md5": "cfcb3f188b2b231996795bd19fb8d03a",
+  "size": 408443
+ }
+}

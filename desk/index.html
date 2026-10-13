@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Desk</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0d0b09; overflow: hidden; }
+  #desk { display: block; width: 100vw; height: 100vh; }
+  #loading { position: fixed; inset: 0; display: grid; place-items: center; color: #d9c9ad; font: 15px Georgia, serif; letter-spacing: .04em; transition: opacity .6s; }
+  #fallback { position: fixed; inset: 0; display: none; place-items: center; color: #d9c9ad; font: 16px Georgia, serif; text-align: center; padding: 24px; }
+  #fallback a { color: #f0d9a8; }
+</style>
+</head>
+<body>
+<canvas id="desk"></canvas>
+<div id="loading">Setting out the desk…</div>
+<div id="fallback">This browser couldn't start 3D graphics (WebGL).<br><a href="dashboard.html">Open the dashboard instead</a></div>
+<script>window.__DESK_DATA__ = /*__DATA__*/null;</script>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

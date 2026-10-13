@@ -13,8 +13,10 @@ sys.path.insert(0, REPO)
 @pytest.fixture
 def sandbox(tmp_path):
     """A throwaway copy of the tool with empty data and a root folder containing no repos."""
-    for f in ("todo.py", "build.py", "links.py", "scan.py", "config.py", "template.html"):
+    for f in ("todo.py", "build.py", "links.py", "inks.py", "scan.py", "config.py", "template.html"):
         shutil.copy(os.path.join(REPO, f), tmp_path / f)
+    (tmp_path / "desk" / "src" / "data").mkdir(parents=True)          # build.py reads the ink palette
+    shutil.copy(os.path.join(REPO, "desk/src/data/inks.json"), tmp_path / "desk/src/data/inks.json")
     (tmp_path / "repos").mkdir()
     (tmp_path / "config.json").write_text(json.dumps({"root": str(tmp_path / "repos"), "author_emails": ["me@example.com"]}))
     (tmp_path / "commits.json").write_text(json.dumps({"generated_at": "2026-10-01T00:00:00+05:30", "since": "2026-09-01",

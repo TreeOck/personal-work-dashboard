@@ -51,6 +51,20 @@ tracker todo [--all]
 
 To have Claude Code keep the Current board in sync, add a rule to your `~/.claude/CLAUDE.md` telling it to run `tracker add` / `start` / `done` when work starts and ends.
 
+## 3D desk (optional showpiece)
+
+A photoreal desk view of the same data, built with three.js: in-progress tasks as index cards on a leather mat, to-dos as sticky notes, this week's finished work as a stack in the done tray, one pen per project in its own ink, today's calendar and a notepad of this week's tallies.
+
+```bash
+cd desk && npm install && npm run assets && npm run build   # once, and after desk code changes
+tracker desk            # open it (tracker desk refresh: rescan git first)
+```
+
+`build.py` writes `desk.html` next to `dashboard.html` whenever `desk-template.html` exists, so the 5pm refresh keeps it current.
+Project inks: `python3 inks.py list` / `python3 inks.py set <project> <ink-id>` (palette in `desk/src/data/inks.json`).
+Assets are CC0 from Poly Haven, pinned with checksums in `desk/assets.lock.json`; fonts are Caveat (OFL) and Special Elite (Apache 2.0).
+Desk tests: `cd desk && npx vitest run`.
+
 ## How it works
 
 | File | Role |

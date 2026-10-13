@@ -1,0 +1,14 @@
+[
+ {"id": "shin-kai",         "name": "Shin-kai · deep sea",            "hex": "#1f3a5c"},
+ {"id": "yama-budo",        "name": "Yama-budo · crimson grape",      "hex": "#7a1f3d"},
+ {"id": "shin-ryoku",       "name": "Shin-ryoku · forest green",      "hex": "#2e5a3a"},
+ {"id": "ku-jaku",          "name": "Ku-jaku · peacock",              "hex": "#1d6670"},
+ {"id": "yama-guri",        "name": "Yama-guri · wild chestnut",      "hex": "#5c3a26"},
+ {"id": "murasaki-shikibu", "name": "Murasaki-shikibu · purple",      "hex": "#4b2f6b"},
+ {"id": "kon-peki",         "name": "Kon-peki · azure",               "hex": "#1f4f8a"},
+ {"id": "tsuki-yo",         "name": "Tsuki-yo · moonlight",           "hex": "#24414f"},
+ {"id": "momiji",           "name": "Momiji · autumn leaves",         "hex": "#9a2a2a"},
+ {"id": "chiku-rin",        "name": "Chiku-rin · bamboo forest",      "hex": "#4f5e22"},
+ {"id": "fuyu-syogun",      "name": "Fuyu-syogun · old man winter",   "hex": "#47525c"},
+ {"id": "take-sumi",        "name": "Take-sumi · bamboo charcoal",    "hex": "#2d2b29"}
+]

@@ -70,8 +70,8 @@ deskserver.py                  local edit server for `tracker desk` (see §7)
 
 ### 3.3 Assets (all CC0, Poly Haven)
 
-- **Textures:** walnut veneer (diffuse, roughness, normal) and brown leather.
-- **HDRIs:** a daylight interior with blinds and a dim evening interior, both at 1k.
+- **Textures:** smoked walnut veneer (diffuse, roughness, normal; chosen 2026-10-13 over American walnut, which read grey under neutral light) and brown leather.
+- **HDRIs:** a neutral daylight loft hall (red:blue ≈ 1.1; replaced the original "blinds" room, which was ≈ 4× redder than blue and tinted everything pink) and a dim evening interior, both at 1k.
 - **Models:** articulated desk lamp, binder, notepads, stapler and potted plant, at 1k textures.
 - **Fonts:** Caveat for handwriting (SIL OFL 1.1) and Special Elite for typewriting (Apache 2.0). Both are bundled, with their licence files kept next to them.
 - **Pinning:** URLs and md5 values are recorded in `assets.lock.json`, and the fetch script verifies them. The assets are not committed to git.
@@ -87,7 +87,7 @@ deskserver.py                  local edit server for `tracker desk` (see §7)
 - The background is the HDRI, blurred to suggest a room behind the desk.
 
 **Rendering**
-- AgX tone mapping, PCF soft shadows and a GTAO pass for ambient occlusion.
+- Neutral tone mapping (keeps material colours true; chosen over AgX, which desaturated warm light into pink), PCF shadows with soft radius, and a GTAO pass for ambient occlusion.
 - Light depth of field in focus shots.
 - Pixel ratio capped at 2.
 
@@ -128,7 +128,7 @@ deskserver.py                  local edit server for `tracker desk` (see §7)
 | Object | Click | Then |
 |---|---|---|
 | Card | Lifts and turns; the camera moves until it fills about 70% of the view | `Space` or a click flips it to the next side; `←` `→` moves to neighbouring cards |
-| Sticky note | Peels off with a bend and comes up close | One side only |
+| Sticky note | Peels off with a bend and comes up close | Flips like a card when its content runs past one side (decided 2026-10-13) |
 | Done tray | The stack slides out and tilts toward you | Drag or `←` `→` to flip sheets with a page-curl |
 | Binder | Slides forward; the cover swings open on its rings | Pages curl; `←` `→` moves between periods; `Home` jumps to today |
 | Calendar | Flips to today, then opens the Day binder there | |
