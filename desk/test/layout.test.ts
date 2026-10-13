@@ -56,3 +56,9 @@ test("a card with more sides says so; a one-sided card doesn't", () => {
   expect(overflowMark(2)).toBe("↷ continued overleaf");
   expect(overflowMark(4)).toBe("↷ continued overleaf (4 sides)");
 });
+
+import { pageFooter } from "../src/paper/layout";
+test("every page of a multi-page task is numbered; a one-page task isn't", () => {
+  expect(pageFooter(0, 1)).toBeNull();
+  expect([0, 1, 2].map(i => pageFooter(i, 3))).toEqual(["1/3", "2/3", "3/3"]);
+});

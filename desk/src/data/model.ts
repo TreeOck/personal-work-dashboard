@@ -8,6 +8,23 @@ export interface DeskModel {
   pens: { project: string; ink: Ink }[];
   today: { ymd: string; day: number; monthName: string; weekday: string };
   week: { commits: number; tasks: number; activeDays: number };
+  days: DayTally[];
+}
+export interface DayTally { ymd: string; label: string; commits: number; tasks: number; todosDone: number; first: string | null; last: string | null }
+const istHM = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
+const dayLabel = (ymd: string) => new Date(ymd + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).replace(",", "");
+
+/** One entry per IST day, newest first, contiguous (days without data are real zero days). */
+export function dailyTallies(data: DeskData, now: Date, days = 14): DayTally[] {
+  const today = istYmd(now);
+  return [...Array(days)].map((_, i) => {
+    const ymd = addDays(today, -i);
+    const cs = data.commits.filter(c => istYmd(c.date) === ymd).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return { ymd, label: i === 0 ? "Today" : i === 1 ? "Yesterday" : dayLabel(ymd), commits: cs.length,
+      tasks: data.tasks.filter(t => t.date === ymd).length,
+      todosDone: data.todo.filter(t => t.status === "done" && t.closed_at && istYmd(t.closed_at) === ymd).length,
+      first: cs.length ? istHM(cs[0].date) : null, last: cs.length ? istHM(cs[cs.length - 1].date) : null };
+  });
 }
 export const CAPS = { cards: 6, stickies: 8 } as const;
 const FALLBACK = palette.find(p => p.id === "take-sumi")!;
@@ -39,11 +56,12 @@ export function buildModel(data: DeskData, now: Date): DeskModel {
   const weekCommits = data.commits.filter(c => inWeek(istYmd(c.date)));
   return {
     cards: prog.slice(0, CAPS.cards), cardOverflow: prog.slice(CAPS.cards),
-    stickies: todo.slice(0, CAPS.stickies), stickyOverflow: todo.slice(CAPS.stickies),
+    stickies: todo, stickyOverflow: [],                                   // Plan 2a: stickyLayout() decides singles vs pile
     done,
     pens: projects.map(project => ({ project, ink: inkFor(project, data) })),
     today: { ymd, day: Number(ymd.slice(8)), monthName: now.toLocaleDateString("en-GB", { timeZone: TZ, month: "long" }).toUpperCase(),
       weekday: now.toLocaleDateString("en-GB", { timeZone: TZ, weekday: "long" }) },
+    days: dailyTallies(data, now),
     week: { commits: weekCommits.length, tasks: data.tasks.filter(t => inWeek(t.date)).length,
       activeDays: new Set(weekCommits.map(c => istYmd(c.date))).size },
   };

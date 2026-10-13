@@ -9,6 +9,11 @@ import { materials } from "./scene/materials";
 import { loadModel, placeOnDesk } from "./scene/models";
 import { DESK, MAT, LAMP, PLANT } from "./scene/layout";
 import { buildObjects } from "./objects";
+import { Animator } from "./anim/animator";
+import { createFocus } from "./interaction/focus";
+import { createPicking } from "./interaction/picking";
+import { keyToAction, motionFactor } from "./interaction/input";
+import { createLoop } from "./scene/loop";
 
 async function getData(): Promise<DeskData> {
   return readData() ?? (await (await fetch("/dev-data.json")).json());    // dev server fallback
@@ -42,12 +47,31 @@ async function boot() {
   placeOnDesk(lamp, LAMP.x, LAMP.z, LAMP.rotY, { baseY: 0 }); scene.add(lamp);   // its mounting peg goes into the desk
   plant.scale.setScalar(PLANT.scale); placeOnDesk(plant, PLANT.x, PLANT.z); scene.add(plant);
 
-  buildObjects(scene, model, m, MAT.t);
-  requestRender();
+  const reg = buildObjects(scene, model, m, MAT.t);
+  const animator = new Animator();
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  const motion = () => motionFactor(reduceMotion.matches);
+  const fade = () => { canvas.style.opacity = "0.25"; requestAnimationFrame(() => requestAnimationFrame(() => { canvas.style.opacity = "1"; })); };
+  let picking: ReturnType<typeof createPicking>;
+  const loop = createLoop(() => { focus.tick(performance.now()); composer.render(); }, () => animator.busy || picking.parallaxBusy());
+  const focus = createFocus({ camera: createRendererResult.camera, reg, animator, kick: () => loop.kick(), get motion() { return motion(); }, fade,
+    parallax: () => picking.parallax() } as Parameters<typeof createFocus>[0]);
+  picking = createPicking({ canvas, camera: createRendererResult.camera, scene, reg, dispatch: a => focus.dispatch(a), stack: focus.stack, hover: id => focus.hover(id),
+    kick: () => loop.kick(), get motion() { return motion(); }, label: document.getElementById("tag")! } as Parameters<typeof createPicking>[0]);
+  canvas.addEventListener("pointermove", e => picking.onPointerMove(e));
+  canvas.addEventListener("pointerdown", e => picking.onPointerDown(e));
+  canvas.addEventListener("pointerup", e => picking.onPointerUp(e));
+  canvas.addEventListener("pointerleave", () => picking.onPointerLeave());
+  canvas.addEventListener("contextmenu", e => e.preventDefault());               // right-click = back (handled on pointerup)
+  addEventListener("keydown", e => { if (e.metaKey || e.ctrlKey || e.altKey) return; const a = keyToAction(e.key, e.shiftKey);
+    if (a) { e.preventDefault(); focus.dispatch(a); } });
+  new ResizeObserver(() => focus.onResize()).observe(canvas);
+  loop.kick();
   const loading = document.getElementById("loading")!;
   loading.style.opacity = "0"; setTimeout(() => loading.remove(), 700);
   // handle for automated browser checks (flicker sweep, idle render count); harmless for normal use
-  (window as any).__desk = { scene, renderer, camera: createRendererResult.camera, requestRender, renders: () => renderCount };
+  (window as any).__desk = { scene, renderer, camera: createRendererResult.camera, requestRender, renders: () => renderCount, focus,
+    busy: () => ({ animator: animator.busy, keys: [...((animator as any).anims as Map<string, unknown>).keys()], parallax: picking.parallaxBusy(), par: picking.debug() }) };
   (window as any).__deskReadyAt = performance.now();
   (window as any).__deskReady = true;   // browser checks wait on this
 }

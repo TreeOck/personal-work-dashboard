@@ -79,6 +79,24 @@ deskserver.py                  local edit server for `tracker desk` (see §7)
 
 ---
 
+## 3a. Real-life mechanics (core rule, decided 2026-10-14)
+
+Every object behaves like the real thing:
+- **Printed text never changes.** No surface ever has its text swapped while you look at it.
+- **More content means more physical paper.** A long task is a thicker stack of single-sided cards, never one card re-printed.
+- **Every change is visible motion,** apart from the reduced-motion setting.
+- **Physical consistency:** objects rest on surfaces, never pass through each other, and cast shadows when lifted.
+
+| Object | Real-life behaviour |
+|---|---|
+| In-progress task | A clipped stack of single-sided index cards, one page each, so longer tasks are visibly thicker. Clicking **picks the stack up**: it's held above the mat, and the clip comes off and is left on the mat. Reading **thumbs** it like cards in your hand: the top card slides out and is tucked under the stack, revealing the next, and turning back brings the bottom card up. Turning past the last card restores the order. Leaving thumbs back to the original order, puts the stack down where it was, and re-clips it. (Decided 2026-10-14, replacing the side read pile, which had no free space on the mat.) |
+| To-do | A small pad of sticky notes glued along the top edge. It is picked up like a stack; each note lifts up over the glued edge to reveal the next, and leaving lets them fall back. |
+| Notepad | A daily tally pad, bound at the top. The top page is today (commits, summarised tasks, to-dos finished, first and last commit time), handwritten. Pages flip over the top binding to go back through earlier days, one page per day, the last 14 days. |
+| Calendar | A flip calendar with one page per day, today on top: the date plus a small handwritten tally of that day's commits. `Space` flips back a day, `Shift`+`Space` forward, and clicking a page opens the Day binder at that date (decided 2026-10-14; Plan 2b). |
+| Done tray | Separate sheets, lifted and turned one by one (Plan 2b). |
+| Binders | Ring binders: the cover swings open and pages turn on the rings, one period per page (Plan 2b). The full detail for a day, week or month lives here. |
+| Pens | Lifted out of the cup and laid down in front of you (Plan 2b). |
+
 ## 4. Scene and objects
 
 **Scale and materials**
@@ -102,12 +120,12 @@ deskserver.py                  local edit server for `tracker desk` (see §7)
 
 | # | Object | Data | Caps |
 |---|---|---|---|
-| 1 | Index cards on the mat | to-do items `in_progress` | 6 visible; the rest go in a pile that fans out on click |
+| 1 | Index cards on the mat | to-do items `in_progress`, each a clipped stack with one card per page of text | 6 visible; the rest go in a pile that fans out on click |
 | 2 | Sticky notes | to-do items `todo` | 8 visible; the rest stack |
 | 3 | Done tray (wooden out-tray) | items done in the last 7 days, one sheet each, newest on top | Stack height grows with the count; an empty week is just an empty tray |
 | 4 | Day / Week / Month binders | summarised tasks grouped by period and thread; the Month binder opens on an inked calendar heatmap | Pages are built on demand |
 | 5 | Flip calendar | today's date (IST) | — |
-| 6 | Notepad | this week's commits, tasks and active days, as handwritten tallies | — |
+| 6 | Notepad | daily tally pad: today on top, one page per day for the last 14 days (changed 2026-10-14; the full week view lives in the WEEK binder) | 14 pages |
 | 7 | Pen cup | one pen per project, in its ink | 7 pens in the cup; the rest lie beside it |
 | 8 | Desk lamp | lighting override | — |
 
@@ -127,12 +145,12 @@ deskserver.py                  local edit server for `tracker desk` (see §7)
 
 | Object | Click | Then |
 |---|---|---|
-| Card | Lifts and turns; the camera moves until it fills about 70% of the view | `Space` or a click flips it to the next side; `←` `→` moves to neighbouring cards |
-| Sticky note | Peels off with a bend and comes up close | Flips like a card when its content runs past one side (decided 2026-10-13) |
+| Card | The stack lifts; the camera moves until the top card fills about 70% of the view | `Space` or a click turns the top page onto the read pile; `Shift`+`Space` turns one back; turning past the last page gathers the stack again; `←` `→` move to neighbouring tasks |
+| Sticky note | The pad comes up close | Pages peel off onto a read pile, like a card stack (decided 2026-10-14, replacing "flips like a card") |
 | Done tray | The stack slides out and tilts toward you | Drag or `←` `→` to flip sheets with a page-curl |
 | Binder | Slides forward; the cover swings open on its rings | Pages curl; `←` `→` moves between periods; `Home` jumps to today |
 | Calendar | Flips to today, then opens the Day binder there | |
-| Notepad | Close-up of the tallies | |
+| Notepad | Close-up of today's page | `Space` flips a page over the top binding (one day earlier); `Shift`+`Space` flips it back |
 | Pen | Lifts out and lies in front of you | Everything not in its project fades and blurs; click the pen again to clear |
 | Lamp | Toggles on or off as an override | Double-click returns to the clock |
 
@@ -202,7 +220,7 @@ deskserver.py                  local edit server for `tracker desk` (see §7)
 |---|---|
 | Nothing in progress or to do | A single handwritten note on the mat: "Nothing on the go" |
 | Nothing done this week | An empty tray, with no label |
-| Long titles, notes or commit lists | Wrap and shrink to a minimum size, then continue on extra card sides or sheets; nothing is truncated silently |
+| Long titles, notes or commit lists | Wrap and shrink to a minimum size, then continue on extra cards in the clipped stack; each card is numbered "n/total"; nothing is truncated silently |
 | Unicode, emoji, symbols | Font fallback chain; covered by a dedicated test card |
 | More than 7 or more than 12 projects | Pens overflow beside the cup; inks repeat with a different pen body |
 | Midnight while open | "Today", the calendar and the Day binder roll over within a minute |

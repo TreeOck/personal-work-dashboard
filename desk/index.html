@@ -10,12 +10,17 @@
   #loading { position: fixed; inset: 0; display: grid; place-items: center; color: #d9c9ad; font: 15px Georgia, serif; letter-spacing: .04em; transition: opacity .6s; }
   #fallback { position: fixed; inset: 0; display: none; place-items: center; color: #d9c9ad; font: 16px Georgia, serif; text-align: center; padding: 24px; }
   #fallback a { color: #f0d9a8; }
+  #tag { position: fixed; left: 0; top: 0; pointer-events: none; opacity: 0; transition: opacity .15s; max-width: 320px;
+    background: #f3ecdd; color: #2d2b29; font: 15px 'Caveat', cursive; padding: 4px 10px 5px; border-radius: 2px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.25); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #desk { transition: opacity .15s; }
 </style>
 </head>
 <body>
 <canvas id="desk"></canvas>
 <div id="loading">Setting out the desk…</div>
 <div id="fallback">This browser couldn't start 3D graphics (WebGL).<br><a href="dashboard.html">Open the dashboard instead</a></div>
+<div id="tag"></div>
 <script>window.__DESK_DATA__ = /*__DATA__*/null;</script>
 <script type="module" src="/src/main.ts"></script>
 </body>

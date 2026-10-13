@@ -44,3 +44,27 @@ export function trayParts() {
   return { floor: { w: inner, d: TRAY.d - 2 * TRAY.wall, h: TRAY.wall }, side: { w: TRAY.wall, d: TRAY.d, h: TRAY.h },
     back: { w: inner, d: TRAY.wall, h: TRAY.h * 0.6 } };
 }
+
+
+/** Bottom y of each card in the overflow pile, starting just above the mat. */
+export const pileSlots = (n: number) => [...Array(n)].map((_, i) => ({ y: stackY(restOn(MAT.t), i, PAPER_T) }));
+
+/** Where a pile's cards go when fanned open: a 3-column grid over the mat, 2 cm up, each at its own height. */
+export function fanSlots(n: number, size: { w: number; d: number }) {
+  const cols = 3, gx = size.w + 0.015, gz = size.d + 0.015, r = seededRandom("fan");
+  return [...Array(n)].map((_, i) => {
+    const page = Math.floor(i / 9), k = i % 9;                         // past 9, later cards stagger over earlier ones
+    return { x: MAT.x + (k % cols - 1) * gx + page * 0.03, z: MAT.z + (Math.floor(k / cols) - 1) * gz + page * 0.03,
+      y: MAT.t + 0.02 + i * (PAPER_T + MIN_GAP), rotY: (r() - 0.5) * 0.06 };
+  });
+}
+
+export const stickyLayout = (total: number) => (total <= 8 ? { singles: total, pile: 0 } : { singles: 7, pile: total - 7 });
+
+/** A clipped stack of single-sided pages; index 0 is the top page. y = page bottom above the stack base. */
+export function pageStack(n: number) {
+  const r = seededRandom("pages:" + n);
+  return [...Array(n)].map((_, i) => ({ y: stackY(0, n - 1 - i, PAPER_T), dx: (r() - 0.5) * 0.001, dz: (r() - 0.5) * 0.001, rotY: (r() - 0.5) * 0.008 }));   // clipped stacks are neat
+}
+/** Height of the solid body drawn around the pages still in a stack (it shrinks as pages are turned away). */
+export const stackBodyHeight = (remaining: number) => (remaining > 0 ? stackBlockHeight(remaining) : 0);

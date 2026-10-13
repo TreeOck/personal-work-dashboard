@@ -53,7 +53,12 @@ To have Claude Code keep the Current board in sync, add a rule to your `~/.claud
 
 ## 3D desk (optional showpiece)
 
-A photoreal desk view of the same data, built with three.js: in-progress tasks as index cards on a leather mat, to-dos as sticky notes, this week's finished work as a stack in the done tray, one pen per project in its own ink, today's calendar and a notepad of this week's tallies.
+A photoreal desk view of the same data, built with three.js, where everything behaves like the real thing: in-progress tasks as clipped stacks of index cards on a leather mat, to-dos as sticky-note pads, this week's finished work as a stack in the done tray, one pen per project in its own ink, today's calendar, and a daily tally pad.
+
+**Using it:** hover to see what things are; click a task, sticky note, the calendar or the notepad to bring it up close.
+Clicking a task picks it up to read: the clip comes off and is left on the mat. `Space` or a click thumbs the top card under the stack, `Shift`+`Space` brings the bottom card back up, and one more `Space` after the last card restores the order. A sticky pad is picked up the same way, and its notes flip up over the glued edge. The tally pad stays on the desk and its pages flip over the binding. `←` `→` go to the neighbouring task; `Esc`, right-click or clicking the empty desk puts things back.
+The notepad is a daily tally pad: today on top; `Space` flips back through the last 14 days.
+Keys: `1` tasks · `2` sticky notes · `5` calendar · `6` notepad · `0` overview. More than 6 tasks (or 8 sticky notes) pile up; click the pile to fan it out. Respects "Reduce motion".
 
 ```bash
 cd desk && npm install && npm run assets && npm run build   # once, and after desk code changes

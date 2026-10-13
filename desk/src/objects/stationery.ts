@@ -1,17 +1,23 @@
 import * as THREE from "three";
 import type { DeskModel } from "../data/model";
 import { drawPaper } from "../paper/render";
-import { BINDER, CALENDAR, NOTEPAD, PAPER_T } from "../scene/layout";
+import { BINDER, CALENDAR, MIN_GAP, NOTEPAD, PAPER_T, restOn } from "../scene/layout";
 import type { materials } from "../scene/materials";
-import { binderBases, notepadSheets, stackBlockHeight } from "./slots";
-import { stackBlock } from "./paperObjects";
+import { Registry } from "../scene/focusables";
+import { FLAT_NORMAL } from "../camera/shots";
+import { binderBases, pageStack, stackBlockHeight, stackBodyHeight } from "./slots";
+import { makePaperCard } from "./paperCard";
+import { renderTallyPage } from "../paper/tallyPage";
+import { setBodyHeight, stackBlock, stackBody } from "./paperObjects";
+import { padRoot } from "../interaction/reading";
+const HIDDEN_EDGE = new THREE.MeshBasicMaterial({ visible: false });
 
 type M = ReturnType<typeof materials>;
 const canvasTex = (w: number, h: number, draw: (g: CanvasRenderingContext2D) => void) => {
   const c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d")!);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
 
-export function addCalendar(scene: THREE.Scene, model: DeskModel, m: M) {
+export function addCalendar(scene: THREE.Scene, model: DeskModel, m: M, reg: Registry) {
   const face = canvasTex(520, 440, g => { drawPaper(g, 520, 440, "#ece5d6", "cal");
     g.fillStyle = "#7a1414"; g.font = "44px 'Special Elite'"; g.textAlign = "center"; g.fillText(model.today.monthName, 260, 90);
     g.fillStyle = "#231a14"; g.font = "bold 210px Georgia, serif"; g.fillText(String(model.today.day), 260, 300);
@@ -19,20 +25,35 @@ export function addCalendar(scene: THREE.Scene, model: DeskModel, m: M) {
   const easel = new THREE.Mesh(new THREE.BoxGeometry(CALENDAR.w, CALENDAR.h, 0.004), [m.paper(), m.paper(), m.paper(), m.paper(), m.paper(face), m.paper()]);
   easel.position.set(CALENDAR.x, CALENDAR.h / 2 * Math.cos(0.3), CALENDAR.z); easel.rotation.x = -0.3; easel.castShadow = true; easel.name = "calendar";
   scene.add(easel);
+  reg.add({ item: { id: "calendar", group: "calendar", pages: 1, turnable: false }, object: easel, label: "Calendar", size: { w: CALENDAR.w, h: CALENDAR.h },
+    normal: [0, Math.sin(0.3), Math.cos(0.3)], home: { position: easel.position.clone(), rotation: easel.rotation.clone() } });
 }
 
-export function addNotepad(scene: THREE.Scene, model: DeskModel, m: M) {
-  const face = canvasTex(400, 560, g => { drawPaper(g, 400, 560, "#f6efe0", "pad");
-    g.strokeStyle = "rgba(110,140,190,.45)"; for (let y = 120; y < 540; y += 52) { g.beginPath(); g.moveTo(24, y); g.lineTo(376, y); g.stroke(); }
-    g.fillStyle = "#2d2b29"; g.font = "40px 'Caveat'";
-    g.fillText("This week", 30, 100); g.fillText(`commits   ${model.week.commits}`, 30, 164);
-    g.fillText(`tasks     ${model.week.tasks}`, 30, 216); g.fillText(`active days  ${model.week.activeDays}`, 30, 268); });
+export function addNotepad(scene: THREE.Scene, model: DeskModel, m: M, reg: Registry) {
   const pad = new THREE.Group(); pad.name = "notepad";
-  const ys = notepadSheets(12), below = stackBlockHeight(11);    // 11 sheets as one block, the written top sheet on it
-  const blk = stackBlock(m, NOTEPAD.w, NOTEPAD.d, below, 11); blk.position.y = ys[0] + below / 2; pad.add(blk);
-  const top = new THREE.Mesh(new THREE.BoxGeometry(NOTEPAD.w, PAPER_T, NOTEPAD.d), [m.paper(), m.paper(), m.paper(face), m.paper(), m.paper(), m.paper()]);
-  top.position.y = ys[11] + PAPER_T / 2; top.castShadow = top.receiveShadow = true; pad.add(top);
+  const size = { w: NOTEPAD.w, d: NOTEPAD.d }, blankSheets = 10, n = model.days.length;
+  const block = stackBlock(m, size.w, size.d, stackBlockHeight(blankSheets), blankSheets);            // unused pages under the day pages
+  block.position.y = restOn(0) + stackBlockHeight(blankSheets) / 2; pad.add(block);
+  const base = restOn(0) + stackBlockHeight(blankSheets) + MIN_GAP, slots = pageStack(n);
+  const hingeY = base + slots[0].y + PAPER_T;                         // top of the top page
+  const BIND = { depth: 0.012, top: hingeY + 0.003 };                // a card header behind the hinge, a little above the pages
+  const low = (() => { const t = new THREE.CanvasTexture(renderTallyPage(model.days[0], 6)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; })();
+  const meshes: THREE.Object3D[] = [], homes: { position: THREE.Vector3; rotation: THREE.Euler }[] = [];
+  slots.forEach((s, i) => {                                       // each day page hinges on the top binding
+    const pivot = new THREE.Group(); pivot.name = "page" + i; pivot.position.set(0, base + s.y + PAPER_T / 2, -size.d / 2);
+    const sheet = makePaperCard(size.w, size.d, m.paper(i === 0 ? low : undefined, 0xf6efe0), m.paper(undefined, 0xf6efe0), HIDDEN_EDGE);   // body draws the sides
+    sheet.position.z = size.d / 2; pivot.add(sheet); pad.add(pivot); meshes.push(pivot); homes.push({ position: pivot.position.clone(), rotation: pivot.rotation.clone() });
+  });
+  const body = stackBody(m, size.w, size.d, n); setBodyHeight(body, base, stackBodyHeight(n)); pad.add(body);
+  const bindH = BIND.top - restOn(0);
+  const binding = new THREE.Mesh(new THREE.BoxGeometry(size.w + 0.002, bindH, BIND.depth), new THREE.MeshPhysicalMaterial({ color: 0x3a2a20, roughness: 0.6 }));
+  binding.position.set(0, restOn(0) + bindH / 2, -size.d / 2 - MIN_GAP - BIND.depth / 2); binding.castShadow = binding.receiveShadow = true; pad.add(binding);
+  const far0 = MIN_GAP + PAPER_T / 2, q = PAPER_T + MIN_GAP;          // flipped pages land on the desk behind, each on the one before
+  const flip = { root0: padRoot(BIND.top, BIND.depth + MIN_GAP, far0, size.d), far0, q, L: size.d };
   pad.position.set(NOTEPAD.x, 0, NOTEPAD.z); pad.rotation.y = -0.35; scene.add(pad);
+  reg.add({ item: { id: "notepad", group: "notepad", pages: n, turnable: n > 1 }, object: pad, size: { w: size.w, h: size.d }, normal: FLAT_NORMAL,
+    label: "Today's tally", pages: { count: n, style: "flip", meshes, homes, size, flip, low, base: 0xf6efe0, body, bodyBase: base, render: (i, px) => renderTallyPage(model.days[i], px) },
+    home: { position: pad.position.clone(), rotation: pad.rotation.clone() } });
 }
 
 export function addBinders(scene: THREE.Scene, m: M) {

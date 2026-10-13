@@ -1,6 +1,7 @@
 // Where everything sits on the desk (metres; desk top is y = 0, you sit at +z).
 export const DESK = { w: 1.6, d: 0.8, h: 0.03 } as const;
 export const MAT = { w: 0.72, d: 0.42, t: 0.003, x: -0.05, z: 0.16 } as const;
+export const CARD_PILE = { x: -0.352, z: 0.17, rotY: Math.PI / 2 } as const;   // mat's left margin, rotated to fit
 export const CARD_SIZE = { w: 0.148, d: 0.105 } as const;          // A6 index card
 export const STICKY_SIZE = { w: 0.076, d: 0.076 } as const;        // 3" sticky note
 export const SHEET_SIZE = { w: 0.21, d: 0.297 } as const;          // A4

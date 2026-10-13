@@ -64,3 +64,6 @@ export function cardBlocks(c: CardVM, kind: "card" | "sticky"): Block[] {
 
 /** Footer for a card whose content runs past the side drawn on the desk (null when it all fits). */
 export const overflowMark = (sides: number) => (sides <= 1 ? null : sides === 2 ? "↷ continued overleaf" : `↷ continued overleaf (${sides} sides)`);
+
+/** Page number for page `index` (0-based) of a `total`-page task; one-page tasks carry no number. */
+export const pageFooter = (index: number, total: number): string | null => (total <= 1 ? null : `${index + 1}/${total}`);

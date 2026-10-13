@@ -91,3 +91,52 @@ test("tray floor never shares a face with the walls", () => {
   expect(p.floor.d).toBeLessThan(TRAY.d);
   expect(p.floor.w).toBeLessThanOrEqual(TRAY.w - 2 * TRAY.wall + 1e-12);
 });
+
+// Plan 2a: overflow piles and the fan they open into.
+import { CARD_PILE } from "../src/scene/layout";
+import { fanSlots, pileSlots, stickyLayout } from "../src/objects/slots";
+
+test("the card pile sits in the mat's left margin, clear of the card grid, on the mat", () => {
+  const halfW = CARD_SIZE.d / 2, halfD = CARD_SIZE.w / 2;                 // rotated 90°
+  expect(CARD_PILE.x - halfW).toBeGreaterThanOrEqual(MAT.x - MAT.w / 2);
+  const grid = cardSlots(6); const leftCol = Math.min(...grid.map(s => s.x)) - CARD_SIZE.w / 2;
+  expect(CARD_PILE.x + halfW).toBeLessThan(leftCol);
+  expect(CARD_PILE.z - halfD).toBeGreaterThanOrEqual(MAT.z - MAT.d / 2); expect(CARD_PILE.z + halfD).toBeLessThanOrEqual(MAT.z + MAT.d / 2);
+  const p = pileSlots(5);
+  expect(p[0].y).toBeCloseTo(MAT.t + MIN_GAP, 12);
+  for (let i = 1; i < p.length; i++) expect(p[i].y - p[i - 1].y).toBeCloseTo(PAPER_T + MIN_GAP, 12);
+});
+
+test("fanned cards are lifted, each at its own height, and stay over the desk", () => {
+  const f = fanSlots(14, CARD_SIZE);
+  expect(f.length).toBe(14);
+  for (let i = 0; i < f.length; i++) {
+    expect(f[i].y).toBeGreaterThan(MAT.t + 0.015);
+    if (i) expect(f[i].y - f[i - 1].y).toBeGreaterThanOrEqual(PAPER_T + MIN_GAP - 1e-12);
+    expect(Math.abs(f[i].x)).toBeLessThan(0.8 - CARD_SIZE.w / 2); expect(Math.abs(f[i].z)).toBeLessThan(0.4 - CARD_SIZE.d / 2);
+  }
+});
+
+test("sticky notes: up to 8 singles; beyond that 7 singles and a pile in slot 8", () => {
+  expect(stickyLayout(0)).toEqual({ singles: 0, pile: 0 });
+  expect(stickyLayout(8)).toEqual({ singles: 8, pile: 0 });
+  expect(stickyLayout(12)).toEqual({ singles: 7, pile: 5 });
+});
+
+import { pageStack } from "../src/objects/slots";
+
+test("page stacks: top page is index 0, every page clears the one below, bottom page at the base", () => {
+  const s = pageStack(5);
+  expect(s[4].y).toBe(0);
+  for (let i = 0; i < 4; i++) expect(s[i].y - s[i + 1].y).toBeCloseTo(PAPER_T + MIN_GAP, 12);
+  for (const p of s) { expect(Math.abs(p.dx)).toBeLessThanOrEqual(0.0012); expect(Math.abs(p.rotY)).toBeLessThanOrEqual(0.012); }
+  expect(pageStack(5)).toEqual(s);                                                      // deterministic
+});
+// R8 finding: the 0.6 mm anti-flicker gaps showed as white saw-teeth along a pad's edge. Stacks get one solid body whose
+// height always equals the pages still in the stack (it shrinks as pages are turned away).
+import { stackBodyHeight } from "../src/objects/slots";
+test("a stack's body is exactly as tall as the pages still in it", () => {
+  expect(stackBodyHeight(0)).toBe(0);
+  expect(stackBodyHeight(1)).toBeCloseTo(PAPER_T, 12);
+  for (const n of [2, 5, 14]) expect(stackBodyHeight(n)).toBeCloseTo(pageStack(n)[0].y + PAPER_T, 12);
+});
