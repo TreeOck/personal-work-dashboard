@@ -120,8 +120,8 @@ def threads_hint(tasks):
                      for p, th in sorted(by.items()))
 
 
-THREAD_RULES = """A "thread" names a piece of work that can span several days, e.g. "DMS Wave 4: versioning" or
-"km-investigation-be Foundation". Reuse an existing thread name EXACTLY when the work continues it;
+THREAD_RULES = """A "thread" names a piece of work that can span several days, e.g. "Billing: invoice export" or
+"Mobile app: offline sync". Reuse an existing thread name EXACTLY when the work continues it;
 otherwise make a new short name. A thread belongs to one project only."""
 
 

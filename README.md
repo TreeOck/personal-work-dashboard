@@ -40,7 +40,7 @@ tracker todo [--all]
 ```
 
 - **Views:** Current (board), Day (one day), Week and Month. Use ◀ ▶ (or `←` `→`) to move between periods; the Day view skips days with no commits. The numbers cover the period on screen, show the change against the previous period, and follow the project filter and search.
-- **Threads:** related tasks across days are grouped into threads (e.g. "DMS Wave 4: versioning"). The Week and Month views list threads, and the Month view adds the top 5 as Highlights. Threads are assigned automatically by the summariser.
+- **Threads:** related tasks across days are grouped into threads (e.g. "Billing: invoice export"). The Week and Month views list threads, and the Month view adds the top 5 as Highlights. Threads are assigned automatically by the summariser.
 - **To-do ↔ commits:** a to-do task is linked to the commits in its repo (or whole project if no repo) made between `tracker start` and `tracker done`. `tracker done` rescans git first, so recent commits count.
 - **Copy standup / Copy report:** standup text (Yesterday / Today / Blockers) or a Markdown report of the period on screen.
 - **Current board:** In progress and To do at the top; finished tasks below as one-line rows grouped by day (today and yesterday open, older days folded).
