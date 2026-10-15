@@ -46,7 +46,7 @@ tracker todo [--all]
 - **Current board:** In progress and To do at the top; finished tasks below as one-line rows grouped by day (today and yesterday open, older days folded).
 - **Details panel:** click any card or row, on any view, to open a side panel with all of its notes, start/finish times, the plan, every commit and (for summarised tasks) the other tasks in its thread. `Esc` closes it.
 - **Month heatmap:** hover over a day to see its tasks, then click to open it in the Day view (on touch screens, tap once to preview and again to open).
-- **Keys:** `c` `d` `w` `m` switch views, `←` `→` change period, `/` search, `Esc` close / clear.
+- **Keys:** `c` `d` `w` `m` switch views, `←` `→` change period, `/` search, `Esc` close / clear. Search matches task ids too: typing `t-0027` shows that card (from any view), and while searching the Done log covers every finished task, not just the last 7 days.
 - A *project* is a top-level folder under `root`, and a *repo* is a git repo inside it, up to 3 levels deep.
 
 To have Claude Code keep the Current board in sync, add a rule to your `~/.claude/CLAUDE.md` telling it to run `tracker add` / `start` / `done` when work starts and ends.
