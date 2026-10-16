@@ -105,3 +105,14 @@ describe("binders", () => {
     expect(pg(run([{ type: "select", id: "binder:day", page: 3 }], START, bind))).toBe(3);
   });
 });
+
+describe("done tray", () => {
+  const tray: Item[] = [{ id: "tray", group: "tray", pages: 4, turnable: true, cyclic: true, marks: [0, 1, 2, 3] }];
+  test("3 picks the tray up; Space thumbs round; ← → move one sheet, clamped", () => {
+    const s = run([{ type: "key", key: "3" }], START, tray);
+    expect(top(s)).toEqual({ kind: "focus", id: "tray", page: 0 });
+    expect((top(reduce(s, { type: "turn", dir: -1 }, tray)) as { page: number }).page).toBe(3);
+    expect((top(reduce(s, { type: "neighbor", dir: 1 }, tray)) as { page: number }).page).toBe(1);
+    expect(reduce(s, { type: "neighbor", dir: -1 }, tray)).toBe(s);
+  });
+});

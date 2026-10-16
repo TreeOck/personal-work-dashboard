@@ -67,3 +67,20 @@ export const overflowMark = (sides: number) => (sides <= 1 ? null : sides === 2 
 
 /** Page number for page `index` (0-based) of a `total`-page task; one-page tasks carry no number. */
 export const pageFooter = (index: number, total: number): string | null => (total <= 1 ? null : `${index + 1}/${total}`);
+
+const TZ = "Asia/Kolkata";
+const took = (a: string, b: string) => { const m = Math.max(0, Math.round((new Date(b).getTime() - new Date(a).getTime()) / 60000));
+  return m < 60 ? m + "m" : m < 1440 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${Math.floor(m / 1440)}d ${Math.floor((m % 1440) / 60)}h`; };
+/** A finished task's sheet in the done tray (A4, millimetres): the typed record, when it was done and how long it took, then
+ *  its notes in the project ink and its commits. */
+export function doneBlocks(c: CardVM): Block[] {
+  const b: Block[] = [
+    { layer: "typed", text: c.id + " · " + c.where, size: 3.6, minSize: 3, gapBefore: 0 },
+    { layer: "typed", text: c.title, size: 7, minSize: 5, gapBefore: 3, underline: true },
+  ];
+  if (c.closed) b.push({ layer: "hand", text: "done " + new Date(c.closed).toLocaleDateString("en-GB", { timeZone: TZ, weekday: "short", day: "numeric", month: "short" }).replace(",", "")
+    + (c.started ? " · took " + took(c.started, c.closed) : ""), size: 5.5, minSize: 4.5, gapBefore: 3 });
+  for (const n of c.notes) b.push({ layer: "hand", text: "— " + n.text, size: 5, minSize: 3.8, gapBefore: 2 });
+  for (const m of c.commits) b.push({ layer: "typed", text: `${m.sha.slice(0, 7)}  ${m.subject}  +${m.ins} −${m.del}`, size: 3.2, minSize: 2.6, gapBefore: 1 });
+  return b;
+}

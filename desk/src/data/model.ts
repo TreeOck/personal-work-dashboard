@@ -3,7 +3,7 @@ import palette from "./inks.json";
 import { binderPeriods, type BinderKind, type Period } from "./binders";
 
 export interface Ink { hex: string; name: string; variant: number }
-export interface CardVM { id: string; title: string; where: string; ink: Ink; notes: Note[]; commits: Commit[]; started: string | null }
+export interface CardVM { id: string; title: string; where: string; ink: Ink; notes: Note[]; commits: Commit[]; started: string | null; closed?: string | null }
 export interface DeskModel {
   cards: CardVM[]; cardOverflow: CardVM[]; stickies: CardVM[]; stickyOverflow: CardVM[]; done: CardVM[];
   pens: { project: string; ink: Ink }[];
@@ -45,7 +45,7 @@ export function buildModel(data: DeskData, now: Date): DeskModel {
   const byKey = new Map(data.commits.map(c => [c.repo_path + ":" + c.sha, c]));
   const vm = (i: TodoItem): CardVM => ({ id: i.id, title: i.title, where: [i.project, i.repo].filter(Boolean).join(" / ") || "no project",
     ink: inkFor(i.project, data), notes: i.notes, commits: (i.linked ?? []).map(k => byKey.get(k)).filter((c): c is Commit => !!c),
-    started: i.started_at ?? null });
+    started: i.started_at ?? null, closed: i.closed_at });
   const prog = data.todo.filter(i => i.status === "in_progress").sort((a, b) => a.created_at.localeCompare(b.created_at)).map(vm);
   const todo = data.todo.filter(i => i.status === "todo").sort((a, b) => a.created_at.localeCompare(b.created_at)).map(vm);
   const cutoff = now.getTime() - 7 * 864e5;

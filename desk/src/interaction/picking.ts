@@ -7,7 +7,7 @@ import { clickTurn, firstFocusable, firstVisible } from "./hits";
 interface Ctx { canvas: HTMLCanvasElement; camera: THREE.PerspectiveCamera; scene: THREE.Scene; reg: Registry;
   dispatch: (a: Action) => void; stack: () => Stack; linkOf: (id: string) => Action | null; hover: (id: string | undefined) => void; kick: () => void; motion: number; label: HTMLElement }
 
-const NAMES: Record<string, string> = { cards: "In progress", stickies: "To do", calendar: "Calendar", notepad: "Today's tally", cardPile: "More in progress", stickyPile: "More to do" };
+const NAMES: Record<string, string> = { cards: "In progress", stickies: "To do", calendar: "Calendar", notepad: "Today's tally", cardPile: "More in progress", stickyPile: "More to do", binders: "Binder", tray: "Done tray" };
 
 export function createPicking(ctx: Ctx) {
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();

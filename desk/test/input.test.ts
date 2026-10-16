@@ -14,7 +14,8 @@ test("keys map to director actions; reserved and unknown keys do nothing", () =>
   expect(keyToAction("ArrowLeft")).toEqual({ type: "neighbor", dir: -1 });
   expect(keyToAction("ArrowRight")).toEqual({ type: "neighbor", dir: 1 });
   for (const k of ["0", "1", "2", "5", "6"]) expect(keyToAction(k)).toEqual({ type: "key", key: k });
-  for (const k of ["3", "4", "7", "8", "x", "Enter"]) expect(keyToAction(k)).toBeNull();
+  expect(keyToAction("3")).toEqual({ type: "key", key: "3" });                 // Plan 2b: the done tray
+  for (const k of ["4", "7", "8", "x", "Enter"]) expect(keyToAction(k)).toBeNull();
 });
 
 test("reduced motion collapses durations to zero", () => {

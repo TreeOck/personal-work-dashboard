@@ -93,7 +93,7 @@ Every object behaves like the real thing:
 | To-do | A small pad of sticky notes glued along the top edge. It is picked up like a stack; each note lifts up over the glued edge to reveal the next, and leaving lets them fall back. |
 | Notepad | A daily tally pad, bound at the top. The top page is today (commits, summarised tasks, to-dos finished, first and last commit time), handwritten. Pages flip over the top binding to go back through earlier days, one page per day, the last 14 days. |
 | Calendar | A wire-bound tent flip calendar with one page per day for the past week (7 pages; a coil wrapped round more pages would be unrealistically fat), today on top: the date plus a small handwritten tally of that day's commits. Pages swing over the coil and hang outside the back stand. `Space` flips back a day, `Shift`+`Space` forward, and clicking a page opens the Day binder at that date (decided 2026-10-14; Plan 2b). |
-| Done tray | Separate sheets, lifted and turned one by one (Plan 2b). |
+| Done tray | Separate A4 sheets, one per task done in the last 7 days, newest on top, lying a little askew. Clicking (or `3`) lifts the stack straight up out of the tray and holds it in front of you; sheets are read like a card stack (the top one tucked under), and it goes back down into the tray the way it came out. Built 2026-10-16. |
 | Binders | Ring binders lying stacked: clicking one slides it out (the ones above drop a place), lifts it and opens it in your hands at the current period; the cover swings open on its spine and leaves turn over the D-rings, each hole sliding round the ring. One period per leaf, printed on the front only; long periods continue on the next leaf. Put back, it goes on top of the stack. Each binder keeps the most recent periods (Day 60, Week 26, Month 12). Built 2026-10-16. |
 | Pens | Lifted out of the cup and laid down in front of you (Plan 2b). |
 
@@ -147,7 +147,7 @@ Every object behaves like the real thing:
 |---|---|---|
 | Card | The stack lifts; the camera moves until the top card fills about 70% of the view | `Space` or a click turns the top page onto the read pile; `Shift`+`Space` turns one back; turning past the last page gathers the stack again; `←` `→` move to neighbouring tasks |
 | Sticky note | The pad comes up close | Pages peel off onto a read pile, like a card stack (decided 2026-10-14, replacing "flips like a card") |
-| Done tray | The stack slides out and tilts toward you | Drag or `←` `→` to flip sheets with a page-curl |
+| Done tray | The stack lifts straight up out of the tray into your hands | `Space` / click right half next sheet, left half previous; `←` `→` one sheet, clamped |
 | Binder | Slides out of the stack and opens in your hands at the current period | Click the right-hand page to turn forward, the left-hand page to turn back (anything you read: right half forward, left half back; decided 2026-10-16); `Space` / `Shift`+`Space` turn single leaves, `←` `→` jump between periods, `Home` back to the current one |
 | Calendar | Flips to today, then opens the Day binder there | |
 | Notepad | Close-up of today's page | `Space` flips a page over the top binding (one day earlier); `Shift`+`Space` flips it back |

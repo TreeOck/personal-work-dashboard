@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { CardVM, DeskModel } from "../data/model";
-import { cardBlocks, layoutSides, overflowMark } from "../paper/layout";
+import { cardBlocks, doneBlocks, layoutSides, overflowMark } from "../paper/layout";
 import { canvasMeasure, drawPaper, drawSide } from "../paper/render";
 import { CARD_PILE, MAT, MIN_GAP, PAPER_T, SHEET_SIZE, STICKY_SIZE, TRAY, restOn } from "../scene/layout";
 import { FLAT_NORMAL } from "../camera/shots";
@@ -9,7 +9,7 @@ import { Registry } from "../scene/focusables";
 import { makePaperCard } from "./paperCard";
 import { pageStack, stackBodyHeight, stickyLayout } from "./slots";
 import type { materials } from "../scene/materials";
-import { cardSlots, stackBlockHeight, stickySlots, trayParts, trayStack } from "./slots";
+import { cardSlots, stickySlots, trayParts, trayStack } from "./slots";
 
 type M = ReturnType<typeof materials>;
 const PX_PER_MM = 6;   // overview resolution; Plan 2 re-renders the focused card at 24 px/mm
@@ -152,7 +152,41 @@ export function addStickies(scene: THREE.Scene, model: DeskModel, m: M, reg: Reg
   }
 }
 
-export function addTray(scene: THREE.Scene, model: DeskModel, m: M, wood: THREE.Material) {
+const SHEET = { wMm: 210, hMm: 297, base: 0xf5f0e6 };
+/** One done task, typed up on an A4 sheet. */
+function renderDoneSheet(c: CardVM, px: number) {
+  const canvas = document.createElement("canvas"); canvas.width = SHEET.wMm * px; canvas.height = SHEET.hMm * px; const g = canvas.getContext("2d")!;
+  drawPaper(g, canvas.width, canvas.height, "#f5f0e6", "done:" + c.id);
+  const sides = layoutSides(doneBlocks(c), canvasMeasure(), { width: SHEET.wMm - 24, height: SHEET.hMm - 36 });
+  drawSide(g, sides[0], c.ink.hex, c.id, px, 12, 14);
+  const mark = overflowMark(sides.length);
+  if (mark) { g.fillStyle = c.ink.hex; g.font = `${5 * px}px 'Caveat'`; g.textAlign = "right"; g.fillText(mark, (SHEET.wMm - 12) * px, (SHEET.hMm - 10) * px); }
+  return canvas;
+}
+
+/** This week's finished tasks as loose sheets in the tray, newest on top: lifted straight up out of the tray and read in the
+ *  hand like a card stack (the top sheet tucked under). */
+function doneStack(m: M, done: CardVM[], reg: Registry) {
+  const n = done.length, size = { w: SHEET_SIZE.w, d: SHEET_SIZE.d }, slots = pageStack(n), mess = trayStack(n);
+  const obj = new THREE.Group(); obj.name = "doneSheets"; obj.position.y = restOn(TRAY.wall);          // never coplanar with the tray floor
+  const low = canvasTexture(renderDoneSheet(done[0], LOW_PX)), meshes: THREE.Object3D[] = [], homes: { position: THREE.Vector3; rotation: THREE.Euler }[] = [];
+  slots.forEach((s, i) => {
+    const j = mess[n - 1 - i];                                                // loose sheets: a little askew
+    const page = makePaperCard(size.w, size.d, m.paper(i === 0 ? low : undefined, SHEET.base), m.paper(undefined, SHEET.base), n > 1 ? HIDDEN : m.paper(undefined, SHEET.base));
+    page.name = "page" + i; page.position.set(j.jitterX, s.y + PAPER_T / 2, j.jitterZ); page.rotation.y = j.rotY;
+    obj.add(page); meshes.push(page); homes.push({ position: page.position.clone(), rotation: page.rotation.clone() });
+  });
+  let body: THREE.Mesh | undefined;
+  if (n > 1) { body = stackBody(m, size.w, size.d, n); setBodyHeight(body, 0, stackBodyHeight(n)); obj.add(body); }
+  reg.add({ item: { id: "tray", group: "tray", pages: n, turnable: n > 1, cyclic: n > 1, marks: [...Array(n).keys()] }, object: obj,
+    label: `${n} done this week`, size: { w: size.w, h: size.d }, normal: FLAT_NORMAL, held: true, heldRotY: -TRAY.rotY,
+    slide: new THREE.Vector3(0, TRAY.h + 0.015, 0),                           // straight up, clear of the tray walls, first
+    home: { position: obj.position.clone(), rotation: obj.rotation.clone() },
+    pages: { count: n, style: "thumb", meshes, homes, size, low, base: SHEET.base, body, bodyBase: 0, render: (i, px) => renderDoneSheet(done[i], px) } });
+  return obj;
+}
+
+export function addTray(scene: THREE.Scene, model: DeskModel, m: M, wood: THREE.Material, reg: Registry) {
   const tray = new THREE.Group(); tray.position.set(TRAY.x, 0, TRAY.z); tray.rotation.y = TRAY.rotY; tray.name = "tray";
   const part = (w: number, h: number, d: number, x: number, y: number, z: number) => {
     const p = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wood); p.position.set(x, y, z); p.castShadow = p.receiveShadow = true; tray.add(p); };
@@ -160,15 +194,6 @@ export function addTray(scene: THREE.Scene, model: DeskModel, m: M, wood: THREE.
   part(tp.floor.w, tp.floor.h, tp.floor.d, 0, tp.floor.h / 2, 0);
   part(tp.side.w, tp.side.h, tp.side.d, -(TRAY.w - TRAY.wall) / 2, tp.side.h / 2, 0); part(tp.side.w, tp.side.h, tp.side.d, (TRAY.w - TRAY.wall) / 2, tp.side.h / 2, 0);
   part(tp.back.w, tp.back.h, tp.back.d, 0, tp.back.h / 2, -(TRAY.d - TRAY.wall) / 2);
-  const stack = trayStack(model.done.length);
-  if (stack.length) {
-    const below = stack.length - 1;                        // all but the top sheet become one block
-    if (below) { const blk = stackBlock(m, SHEET_SIZE.w, SHEET_SIZE.d, stackBlockHeight(below), below);
-      blk.position.set(0, stack[0].y + stackBlockHeight(below) / 2, 0); tray.add(blk); }
-    const t = stack[stack.length - 1];
-    const tex = textureFor(model.done[0], "sheet", SHEET_SIZE.w * 1000, SHEET_SIZE.d * 1000, "#f5f0e6").texture;
-    const sh = sheet(m, SHEET_SIZE.w, SHEET_SIZE.d, tex, t.y + PAPER_T / 2);
-    sh.position.x = t.jitterX; sh.position.z = t.jitterZ; sh.rotation.y = t.rotY; tray.add(sh);
-  }
+  if (model.done.length) tray.add(doneStack(m, model.done, reg));
   scene.add(tray);
 }

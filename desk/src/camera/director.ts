@@ -1,15 +1,15 @@
-export type Group = "cards" | "stickies" | "calendar" | "notepad" | "cardPile" | "stickyPile" | "binders";
+export type Group = "cards" | "stickies" | "calendar" | "notepad" | "cardPile" | "stickyPile" | "binders" | "tray";
 export type PileId = "cardPile" | "stickyPile";
 export interface Item { id: string; group: Group; pages: number; turnable: boolean; pile?: PileId; cyclic?: boolean;   // cyclic: a held stack, thumbed round
   min?: number; start?: number; marks?: number[] }   // binders: never back onto the cover; open at start; ← → jump between marks
 export type Frame = { kind: "overview" } | { kind: "focus"; id: string; page: number; dir?: 1 | -1 } | { kind: "fan"; pile: PileId };
 export type Stack = Frame[];
 export type Action = { type: "select"; id: string; page?: number } | { type: "home" } | { type: "back" } | { type: "turn"; dir: 1 | -1 } | { type: "neighbor"; dir: 1 | -1 }
-  | { type: "key"; key: "0" | "1" | "2" | "5" | "6" };
+  | { type: "key"; key: "0" | "1" | "2" | "3" | "5" | "6" };
 
 export const START: Stack = [{ kind: "overview" }];
 export const top = (s: Stack): Frame => s[s.length - 1];
-const KEY_GROUP: Record<"1" | "2" | "5" | "6", Group> = { "1": "cards", "2": "stickies", "5": "calendar", "6": "notepad" };
+const KEY_GROUP: Record<"1" | "2" | "3" | "5" | "6", Group> = { "1": "cards", "2": "stickies", "3": "tray", "5": "calendar", "6": "notepad" };
 const isPile = (g: Group): g is PileId => g === "cardPile" || g === "stickyPile";
 
 export function reduce(s: Stack, a: Action, items: Item[]): Stack {

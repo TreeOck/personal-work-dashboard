@@ -122,12 +122,15 @@ export function createFocus(ctx: Ctx) {
   function putDown(r: Reader) {
     r.busy = true;
     r.f.rack?.put(r.f.item.id);                                       // a binder goes back on top of the stack
-    const o = r.f.object, rest = restOf(r), from = o.position.clone(), to = rest.position.clone(), toRy = rest.rotation.y, fromRy = o.rotation.y;
+    const o = r.f.object, rest = restOf(r), from = o.position.clone(), end = rest.position.clone(), toRy = rest.rotation.y, fromRy = o.rotation.y;
+    const to = r.f.slide ? end.clone().add(r.f.slide) : end, k = r.f.slide ? 0.35 : 0;   // the way it came out, in reverse
     const s = (t: number) => { const x = Math.min(1, Math.max(0, t)); return x * x * (3 - 2 * x); };
     if (r.f.clip) { holderAt(r, rest); clipTo(r, CLIP_OFF, 0); }      // lift the clip off the spot before the stack lands
-    animator.play("pose:" + r.f.item.id, ms(LIFT_MS), p => {         // across first, then straight down
+    animator.play("pose:" + r.f.item.id, ms(LIFT_MS * (1 + k)), p0 => {   // across first, then straight down (then slide home)
+      const p = Math.min(1, p0 * (1 + k));
       o.position.set(from.x + (to.x - from.x) * s(p / 0.8), from.y + (to.y - from.y) * s((p - 0.5) / 0.5), from.z + (to.z - from.z) * s(p / 0.8));
       o.rotation.y = fromRy + (toRy - fromRy) * s(p / 0.8);
+      if (k && p0 > 1 / (1 + k)) o.position.lerpVectors(to, end, s((p0 - 1 / (1 + k)) * (1 + k) / k));
     }, now(), { done: () => {
       const landed = () => { r.pose = "rest"; r.busy = false; hand = null; r.f.pages?.show?.(false); faces(r); pump(r); for (const w of readers.values()) if (w !== r) pump(w); };
       if (!r.f.clip) return landed();
