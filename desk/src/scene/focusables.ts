@@ -31,7 +31,8 @@ export interface Focusable {
   held?: boolean;                                             // picked up to be read (cards, stickies); else read where it lies
   clip?: { mesh: THREE.Object3D; y: number };                 // paper clip on a multi-card stack; y = its height above the stack base
   heldAt?: THREE.Vector3; heldRotY?: number; heldShot?: THREE.Vector3;   // where it is held, turned how, and where to look (default HELD)
-  link?: (top: number) => Action;                              // clicking it while reading goes elsewhere (calendar -> Day binder)
+  link?: (top: number) => Action;
+  sideOf?: (local: THREE.Vector3) => 1 | -1;                   // which way a click turns it (default: left half back, right half forward)                              // clicking it while reading goes elsewhere (calendar -> Day binder)
   slide?: THREE.Vector3;                                       // slid out this far before lifting (a binder from a stack)
   rack?: { take(id: string): string[]; put(id: string): void };   // binders: rests change as one is taken out and put back
 }

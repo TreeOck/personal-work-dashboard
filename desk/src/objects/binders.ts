@@ -56,6 +56,9 @@ function drawHeatmap(g: CanvasRenderingContext2D, p: Period, px: number) {
   void HEATMAP_MM;
 }
 
+/** Which page of an open binder a click landed on (binder-local z): past the ring axis is the left-hand page, so back. */
+export const binderSide = (localZ: number): 1 | -1 => (localZ > D / 2 - ZS ? -1 : 1);
+
 /** The Day binder sheet to open for a date: that day's page, or the nearest earlier day that has one. */
 export function daySheetFor(keys: string[], marks: number[], ymd: string) {
   let i = -1; keys.forEach((k, j) => { if (k <= ymd) i = j; });
@@ -111,7 +114,7 @@ export function addBinders(scene: THREE.Scene, model: DeskModel, m: M, reg: Regi
     const f: Omit<Focusable, "rest"> = {
       item: { id: obj.name, group: "binders", pages: n + 1, turnable: n > 0, min: 1, start, marks }, object: obj, label: kind[0].toUpperCase() + kind.slice(1) + " binder",
       size: { w: 0.5, h: 0.32 }, normal: FLAT_NORMAL, held: true, heldAt, heldRotY: -Math.PI / 2,
-      heldShot: new THREE.Vector3(MAT.x, heldAt.y - H / 2 + R, heldAt.z), slide: new THREE.Vector3(0, 0, D + 0.04), rack,
+      heldShot: new THREE.Vector3(MAT.x, heldAt.y - H / 2 + R, heldAt.z), sideOf: v => binderSide(v.z), slide: new THREE.Vector3(0, 0, D + 0.04), rack,
       home: { position: new THREE.Vector3(), rotation: new THREE.Euler() },
       pages: { count: n + 1, style: "flip", block: true, meshes, homes, size: { w: BINDER.w, d: D }, low, base: 0xece5d6, bodyBase: 0, show,
         pose: (k, p) => (k === 0 ? coverAt(p) : leafAt(k - 1, p)),

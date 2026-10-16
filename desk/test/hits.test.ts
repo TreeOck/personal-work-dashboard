@@ -17,3 +17,13 @@ test("hidden things are not hits: invisible objects, hidden parents, invisible m
   expect(firstFocusable(hits as never, resolve as never)).toBe("card:b");
   expect(firstFocusable([], resolve as never)).toBeUndefined();
 });
+
+import { clickTurn } from "../src/interaction/hits";
+import { binderSide } from "../src/objects/binders";
+test("clicking the left half of what you're reading turns back, the right half forward", () => {
+  expect(clickTurn(-0.01)).toBe(-1); expect(clickTurn(0.02)).toBe(1); expect(clickTurn(0)).toBe(1);
+});
+test("an open binder: the left-hand page (past the spine) turns back, the right-hand page forward", () => {
+  expect(binderSide(0.2)).toBe(-1);                       // binder z past the ring axis = the left-hand stack
+  expect(binderSide(-0.05)).toBe(1);
+});

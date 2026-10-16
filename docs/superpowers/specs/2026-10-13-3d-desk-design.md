@@ -148,7 +148,7 @@ Every object behaves like the real thing:
 | Card | The stack lifts; the camera moves until the top card fills about 70% of the view | `Space` or a click turns the top page onto the read pile; `Shift`+`Space` turns one back; turning past the last page gathers the stack again; `←` `→` move to neighbouring tasks |
 | Sticky note | The pad comes up close | Pages peel off onto a read pile, like a card stack (decided 2026-10-14, replacing "flips like a card") |
 | Done tray | The stack slides out and tilts toward you | Drag or `←` `→` to flip sheets with a page-curl |
-| Binder | Slides out of the stack and opens in your hands at the current period | `Space` / `Shift`+`Space` turn single leaves, `←` `→` jump between periods, `Home` back to the current one |
+| Binder | Slides out of the stack and opens in your hands at the current period | Click the right-hand page to turn forward, the left-hand page to turn back (anything you read: right half forward, left half back; decided 2026-10-16); `Space` / `Shift`+`Space` turn single leaves, `←` `→` jump between periods, `Home` back to the current one |
 | Calendar | Flips to today, then opens the Day binder there | |
 | Notepad | Close-up of today's page | `Space` flips a page over the top binding (one day earlier); `Shift`+`Space` flips it back |
 | Pen | Lifts out and lies in front of you | Everything not in its project fades and blurs; click the pen again to clear |
