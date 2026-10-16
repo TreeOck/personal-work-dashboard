@@ -8,6 +8,8 @@ import { FLAT_NORMAL } from "../camera/shots";
 import { binderBases, pageStack, stackBlockHeight, stackBodyHeight } from "./slots";
 import { makePaperCard } from "./paperCard";
 import { renderTallyPage } from "../paper/tallyPage";
+import { renderCalendarPage } from "../paper/calendarPage";
+import { ringFlip, tentLayout } from "./calendarTent";
 import { setBodyHeight, stackBlock, stackBody } from "./paperObjects";
 import { padRoot } from "../interaction/reading";
 const HIDDEN_EDGE = new THREE.MeshBasicMaterial({ visible: false });
@@ -17,16 +19,35 @@ const canvasTex = (w: number, h: number, draw: (g: CanvasRenderingContext2D) => 
   const c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d")!);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
 
+/** A wire-bound tent calendar: one page per day of the past week, today on top. Pages swing over the coil onto the back
+ *  (calendarTent.ts has the geometry and its tests). */
 export function addCalendar(scene: THREE.Scene, model: DeskModel, m: M, reg: Registry) {
-  const face = canvasTex(520, 440, g => { drawPaper(g, 520, 440, "#ece5d6", "cal");
-    g.fillStyle = "#7a1414"; g.font = "44px 'Special Elite'"; g.textAlign = "center"; g.fillText(model.today.monthName, 260, 90);
-    g.fillStyle = "#231a14"; g.font = "bold 210px Georgia, serif"; g.fillText(String(model.today.day), 260, 300);
-    g.font = "40px 'Caveat'"; g.fillText(model.today.weekday, 260, 380); });
-  const easel = new THREE.Mesh(new THREE.BoxGeometry(CALENDAR.w, CALENDAR.h, 0.004), [m.paper(), m.paper(), m.paper(), m.paper(), m.paper(face), m.paper()]);
-  easel.position.set(CALENDAR.x, CALENDAR.h / 2 * Math.cos(0.3), CALENDAR.z); easel.rotation.x = -0.3; easel.castShadow = true; easel.name = "calendar";
-  scene.add(easel);
-  reg.add({ item: { id: "calendar", group: "calendar", pages: 1, turnable: false }, object: easel, label: "Calendar", size: { w: CALENDAR.w, h: CALENDAR.h },
-    normal: [0, Math.sin(0.3), Math.cos(0.3)], home: { position: easel.position.clone(), rotation: easel.rotation.clone() } });
+  const days = model.days.slice(0, 7), n = days.length, d = CALENDAR.h, t = tentLayout(d, n), w = CALENDAR.w, top = d / 2 - t.hole;
+  const cal = new THREE.Group(); cal.name = "calendar";                       // origin mid-page, so the camera frames the page
+  const rig = new THREE.Group(); rig.position.z = -top; cal.add(rig);         // rig origin on the coil axis
+  const hang = (y: number, angle: number, child: THREE.Object3D, s0: number) => {
+    const pivot = new THREE.Group(); pivot.rotation.x = angle; child.position.set(0, y, s0); pivot.add(child); rig.add(pivot); return pivot; };
+  const board = (len: number) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, t.board.t, len + t.hole), m.paper(undefined, 0x8a7a66));
+    b.castShadow = b.receiveShadow = true; return b; };
+  hang(t.board.front, 0, board(t.board.frontLength), (t.board.frontLength - t.hole) / 2);
+  hang(t.board.back, ringFlip(1, t.opening), board(t.board.backLength), (t.board.backLength - t.hole) / 2);
+  const low = (() => { const x = new THREE.CanvasTexture(renderCalendarPage(days[0], 6)); x.colorSpace = THREE.SRGBColorSpace; x.anisotropy = 8; return x; })();
+  const meshes: THREE.Object3D[] = [], homes: { position: THREE.Vector3; rotation: THREE.Euler }[] = [];
+  days.forEach((_, k) => {
+    const sheet = makePaperCard(w, d, m.paper(k === 0 ? low : undefined, 0xece5d6), m.paper(undefined, 0xece5d6), m.paper(undefined, 0xece5d6));
+    const pivot = hang(t.e(k), 0, sheet, d / 2 - t.hole); pivot.name = "page" + k;
+    meshes.push(pivot); homes.push({ position: pivot.position.clone(), rotation: pivot.rotation.clone() });
+  });
+  const wire = new THREE.MeshPhysicalMaterial({ color: 0x2b2b2e, metalness: 1, roughness: 0.35 });
+  for (let x = -w / 2 + 0.008; x <= w / 2 - 0.008 + 1e-9; x += 0.012) {        // the coil, one loop per punched hole
+    const loop = new THREE.Mesh(new THREE.TorusGeometry(t.ring, 0.0007, 6, 32), wire); loop.rotation.y = Math.PI / 2; loop.position.x = x; loop.castShadow = true; rig.add(loop);
+  }
+  cal.position.set(CALENDAR.x, t.originY - top * Math.sin(t.rotX), CALENDAR.z + top * Math.cos(t.rotX)); cal.rotation.x = t.rotX;
+  scene.add(cal);
+  const pose = (k: number, p: number) => { meshes[k].rotation.x = ringFlip(p, t.opening); meshes[k].children[0].position.y = t.offset(k, p); };
+  reg.add({ item: { id: "calendar", group: "calendar", pages: n, turnable: n > 1 }, object: cal, label: "Calendar", size: { w, h: d },
+    normal: [0, Math.sin(0.3), Math.cos(0.3)], home: { position: cal.position.clone(), rotation: cal.rotation.clone() },
+    pages: { count: n, style: "flip", meshes, homes, size: { w, d }, low, base: 0xece5d6, bodyBase: 0, pose, render: (i, px) => renderCalendarPage(days[i], px) } });
 }
 
 export function addNotepad(scene: THREE.Scene, model: DeskModel, m: M, reg: Registry) {

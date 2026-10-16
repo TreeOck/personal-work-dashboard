@@ -138,12 +138,13 @@ export function createFocus(ctx: Ctx) {
         if (pages.body) setBodyHeight(pages.body, pages.bodyBase + body.base, body.h);
       }, now(), { done });
     } else {
-      const k = dir === 1 ? r.top : r.top - 1, page = pages.meshes[k], fl = pages.flip!;
+      const k = dir === 1 ? r.top : r.top - 1, page = pages.meshes[k];
       next = r.top + dir;
-      const o = { home: (i: number) => pages.homes[i].position.y, ...fl };
+      const place = pages.pose ?? ((i: number, p: number) => { const f = padFlip(i, p, { home: (j: number) => pages.homes[j].position.y, ...pages.flip! });
+        page.position.y = f.y; page.rotation.x = f.angle; });
       if (dir === 1) { if (next < n) setFace(r, next, r.want ? "hi" : "low"); body(r, n - k - 1); }   // the page has left the pad
       else setFace(r, k, r.want ? "hi" : "low");
-      animator.play("stack:" + id, dur, p => { const f = padFlip(k, dir === 1 ? p : 1 - p, o); page.position.y = f.y; page.rotation.x = f.angle; }, now(),
+      animator.play("stack:" + id, dur, p => place(k, dir === 1 ? p : 1 - p), now(),
         { done: () => { if (dir === -1) body(r, n - k); done(); } });
     }
   }

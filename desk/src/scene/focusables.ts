@@ -10,6 +10,7 @@ export interface Pages {
   homes: { position: THREE.Vector3; rotation: THREE.Euler }[];
   size: { w: number; d: number };
   flip?: { root0: number; far0: number; q: number; L: number }; // flip only: where flipped pages lie (see reading.ts padFlip)
+  pose?: (k: number, p: number) => void;                       // flip only: the object places page k at progress p itself (calendar)
   low: THREE.Texture;                                          // top page at overview resolution
   base: number;                                                // the paper colour (cream card, yellow sticky, pad cream)
   body?: THREE.Mesh; bodyBase: number;                         // solid side walls around the pages still in the stack (multi-page only)
