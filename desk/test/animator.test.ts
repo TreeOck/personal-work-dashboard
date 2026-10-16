@@ -34,3 +34,12 @@ describe("Animator", () => {
     expect(easeInOutCubic(0.25) + easeInOutCubic(0.75)).toBeCloseTo(1, 12);
   });
 });
+
+import { motionScale } from "../src/scene/renderer";
+// Safari on this machine: fill-rate bound (12.7 ms per full 2560x1358 frame, 4.5 ms at half size) with a refresh slot every
+// 5 ms, so moving frames landed 12..34 ms apart. While something moves, big canvases render at a lower internal resolution.
+test("motion resolution: only big canvases drop, to about 2 megapixels, never below 0.6", () => {
+  expect(motionScale(1440, 900)).toBe(1);                   // 1.3 MP: already cheap
+  expect(motionScale(2560, 1358)).toBeCloseTo(0.76, 2);      // 3.5 MP -> 2 MP
+  expect(motionScale(5120, 2880)).toBe(0.6);                 // 5K retina: floor
+});

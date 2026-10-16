@@ -6,11 +6,11 @@ import { fanSlots, stackBodyHeight } from "../objects/slots";
 import { setBodyHeight } from "../objects/paperObjects";
 import { CAMERA, MAT, MIN_GAP, OVERVIEW } from "../scene/layout";
 import type { Focusable, Registry } from "../scene/focusables";
-import { padFlip, pageQuality, stepsTo, TextureLedger, thumbPose, type Quality } from "./reading";
+import { hiPxPerMm, neighbours, padFlip, pageQuality, stepsTo, TextureLedger, thumbPose, type Quality } from "./reading";
 
 // Channels: "camera"; "pose:<id>" moves a whole object (hover, fan, pick up, put down: one channel, so the newest move wins);
 // "stack:<id>" is the one page move in progress on that object; "clip:<id>" its paper clip.
-const HI_PX = 24, LOW_PX = 6, CAM_MS = 750, LIFT_MS = 700, TURN_MS = 560, QUICK_MS = 220, CLIP_MS = 280, FAN_MS = 600,
+const LOW_PX = 6, CAM_MS = 750, LIFT_MS = 700, TURN_MS = 560, QUICK_MS = 220, CLIP_MS = 280, FAN_MS = 600,
   HOVER_LIFT = 0.003, HOVER_MS = 140;
 /** Where you hold a stack to read it: over the middle of the mat, 10 cm up, squared to you. */
 export const HELD = new THREE.Vector3(MAT.x, MAT.t + 0.1, MAT.z);
@@ -21,7 +21,7 @@ interface Reader { f: Focusable; top: number; moving: 0 | 1 | -1; queue: (1 | -1
   busy: boolean; tex: TextureLedger<THREE.Texture>; q: Quality[]; holder?: THREE.Group; clipDrop: number }
 
 interface Ctx { camera: THREE.PerspectiveCamera; reg: Registry; animator: Animator; kick: () => void; motion: number;
-  fade: () => void; parallax: () => THREE.Vector3 }
+  fade: () => void; parallax: () => THREE.Vector3; upload: (t: THREE.Texture) => void; canvasHeight: () => number }
 
 export function createFocus(ctx: Ctx) {
   const { camera, reg, animator } = ctx;
@@ -39,13 +39,17 @@ export function createFocus(ctx: Ctx) {
     const mat = (pages.meshes[i].getObjectByName("front") as THREE.Mesh).material as THREE.MeshPhysicalMaterial;
     let t: THREE.Texture | null = null;
     if (q === "hi" || (q === "low" && i !== 0)) {
-      t = new THREE.CanvasTexture(pages.render(i, q === "hi" ? HI_PX : LOW_PX)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = q === "hi" ? 16 : 8;
+      const px = q === "hi" ? hiPxPerMm(ctx.canvasHeight(), Math.max(pages.size.w, pages.size.d)) : LOW_PX;
+      t = new THREE.CanvasTexture(pages.render(i, px)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = q === "hi" ? 16 : 8;
+      ctx.upload(t);                                                  // now, before anything starts moving (not mid-turn)
     }
     mat.map = q === "none" ? null : t ?? pages.low;               // page 0's small texture is shared and never disposed
     r.tex.set(i, t);
     mat.color.set(mat.map ? 0xffffff : pages.base); mat.needsUpdate = true; r.q[i] = q;
   }
-  const faces = (r: Reader) => r.f.pages?.meshes.forEach((_, i) => setFace(r, i, pageQuality(i, r.top, r.want)));
+  const faces = (r: Reader) => { const p = r.f.pages; if (!p) return;
+    const near = r.want ? neighbours(r.top, p.count, !!r.f.item.cyclic) : [];          // ready before you turn to them
+    p.meshes.forEach((_, i) => setFace(r, i, near.includes(i) ? "hi" : pageQuality(i, r.top, r.want))); };
 
   // ---- where things go -------------------------------------------------------------------------------------------
   const restOf = (r: Reader) => r.f.rest;

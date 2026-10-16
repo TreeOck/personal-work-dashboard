@@ -22,5 +22,7 @@ export class Animator {
   }
 
   cancel(key: string) { this.anims.delete(key); }
+  /** True while anything other than the camera is moving (the shadow map only needs redrawing then). */
+  movingObjects() { for (const k of this.anims.keys()) if (k !== "camera") return true; return false; }
   get busy() { return this.anims.size > 0; }
 }

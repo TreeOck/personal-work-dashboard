@@ -61,3 +61,13 @@ export function stepsTo(from: number, to: number, n: number, dir: 1 | -1 | undef
   if (dir) return { steps: dir === 1 ? fwd : bwd, dir };
   return bwd < fwd ? { steps: bwd, dir: -1 } : { steps: fwd, dir: 1 };
 }
+
+/** Pixels per mm for a page being read: enough for the page to stay sharp on this canvas (about 1.6x what it can show), never
+ *  the fixed 24 px/mm that made a binder leaf a 36-megapixel upload (Safari stalls ~170 ms on that). */
+export const hiPxPerMm = (canvasHeight: number, pageMaxM: number) => Math.min(24, Math.max(6, Math.ceil((canvasHeight / (pageMaxM * 1000)) * 1.6)));
+
+/** The pages either side of the one on top: made ready while you read, so a turn never waits for a texture upload. */
+export function neighbours(top: number, n: number, cyclic: boolean): number[] {
+  if (cyclic) return n < 2 ? [] : [...new Set([(top - 1 + n) % n, (top + 1) % n])].filter(i => i !== top);
+  return [top - 1, top + 1].filter(i => i >= 0 && i < n);
+}

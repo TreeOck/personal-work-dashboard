@@ -5,9 +5,15 @@ import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { CAMERA, OVERVIEW } from "./depth";
 
+/** Internal resolution scale while something moves: big canvases drop to about 2 megapixels (never below 0.6), so a moving
+ *  frame fits the display's refresh rhythm in Safari (fill-rate bound there). Still frames always render at full resolution. */
+export const motionScale = (wPx: number, hPx: number) => { const mp = (wPx * hPx) / 1e6; return mp <= 2 ? 1 : Math.max(0.6, Math.sqrt(2 / mp)); };
+
 export function createRenderer(canvas: HTMLCanvasElement) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  // no canvas MSAA: the scene is drawn into the composer's own (non-MSAA) targets, so canvas antialiasing only cost fill rate
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
+  const base = Math.min(devicePixelRatio, 2);
+  renderer.setPixelRatio(base);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.shadowMap.enabled = true;
@@ -22,9 +28,17 @@ export function createRenderer(canvas: HTMLCanvasElement) {
   composer.addPass(gtao);
   composer.addPass(new OutputPass());
   let pending = false;
-  const requestRender = () => { if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; composer.render(); }); };
+  const requestRender = () => { if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; renderer.shadowMap.needsUpdate = true; composer.render(); }); };
   const resize = () => { const w = canvas.clientWidth, h = canvas.clientHeight; renderer.setSize(w, h, false); composer.setSize(w, h);
     camera.aspect = w / h; camera.updateProjectionMatrix(); requestRender(); };
   new ResizeObserver(resize).observe(canvas); resize();
-  return { renderer, scene, camera, composer, requestRender };
+  let moving = false;
+  /** Switch to the lower motion resolution while things move, and back to full for the still frame. */
+  const setMoving = (on: boolean) => {
+    if (on === moving) return; moving = on;
+    const w = canvas.clientWidth, h = canvas.clientHeight, pr = on ? base * motionScale(w * base, h * base) : base;
+    if (pr === renderer.getPixelRatio()) return;
+    renderer.setPixelRatio(pr); renderer.setSize(w, h, false); composer.setPixelRatio(pr); composer.setSize(w, h);
+  };
+  return { renderer, scene, camera, composer, requestRender, setMoving };
 }

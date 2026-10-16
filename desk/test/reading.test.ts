@@ -106,3 +106,19 @@ describe("steps between pages", () => {
     expect(stepsTo(13, 0, 14, 1, false)).toEqual({ steps: 13, dir: -1 });
   });
 });
+
+import { hiPxPerMm, neighbours } from "../src/interaction/reading";
+describe("texture resolution follows the screen, not a fixed 24 px/mm", () => {
+  test("a big page gets fewer pixels per mm than a small card, within 6..24", () => {
+    expect(hiPxPerMm(1358, 0.3)).toBe(8);                      // binder leaf on a 1440p canvas: 2376 px tall, ~2.5x what shows
+    expect(hiPxPerMm(1358, 0.148)).toBe(15);                   // index card
+    expect(hiPxPerMm(2716, 0.148)).toBe(24);                   // retina: capped
+    expect(hiPxPerMm(300, 0.3)).toBe(6);                       // tiny window: floor
+  });
+  test("while reading, the pages either side are made ready too (thumbed stacks wrap round)", () => {
+    expect(neighbours(0, 5, true)).toEqual([4, 1]);
+    expect(neighbours(0, 5, false)).toEqual([1]);
+    expect(neighbours(4, 5, false)).toEqual([3]);
+    expect(neighbours(0, 1, true)).toEqual([]);
+  });
+});
