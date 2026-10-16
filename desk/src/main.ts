@@ -56,7 +56,7 @@ async function boot() {
   const loop = createLoop(() => { focus.tick(performance.now()); composer.render(); }, () => animator.busy || picking.parallaxBusy());
   const focus = createFocus({ camera: createRendererResult.camera, reg, animator, kick: () => loop.kick(), get motion() { return motion(); }, fade,
     parallax: () => picking.parallax() } as Parameters<typeof createFocus>[0]);
-  picking = createPicking({ canvas, camera: createRendererResult.camera, scene, reg, dispatch: a => focus.dispatch(a), stack: focus.stack, hover: id => focus.hover(id),
+  picking = createPicking({ canvas, camera: createRendererResult.camera, scene, reg, dispatch: a => focus.dispatch(a), stack: focus.stack, linkOf: id => focus.linkOf(id), hover: id => focus.hover(id),
     kick: () => loop.kick(), get motion() { return motion(); }, label: document.getElementById("tag")! } as Parameters<typeof createPicking>[0]);
   canvas.addEventListener("pointermove", e => picking.onPointerMove(e));
   canvas.addEventListener("pointerdown", e => picking.onPointerDown(e));

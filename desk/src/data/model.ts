@@ -1,5 +1,6 @@
 import type { Commit, DeskData, Note, TodoItem } from "./types";
 import palette from "./inks.json";
+import { binderPeriods, type BinderKind, type Period } from "./binders";
 
 export interface Ink { hex: string; name: string; variant: number }
 export interface CardVM { id: string; title: string; where: string; ink: Ink; notes: Note[]; commits: Commit[]; started: string | null }
@@ -9,6 +10,7 @@ export interface DeskModel {
   today: { ymd: string; day: number; monthName: string; weekday: string };
   week: { commits: number; tasks: number; activeDays: number };
   days: DayTally[];
+  binders: Record<BinderKind, Period[]>;
 }
 export interface DayTally { ymd: string; label: string; commits: number; tasks: number; todosDone: number; first: string | null; last: string | null }
 const istHM = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
@@ -31,8 +33,8 @@ const FALLBACK = palette.find(p => p.id === "take-sumi")!;
 const TZ = "Asia/Kolkata";
 
 export const istYmd = (iso: string | Date) => new Date(iso).toLocaleDateString("en-CA", { timeZone: TZ });
-const addDays = (ymd: string, n: number) => { const d = new Date(ymd + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
-const weekStart = (ymd: string) => addDays(ymd, -((new Date(ymd + "T12:00:00Z").getUTCDay() + 6) % 7));
+export const addDays = (ymd: string, n: number) => { const d = new Date(ymd + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+export const weekStart = (ymd: string) => addDays(ymd, -((new Date(ymd + "T12:00:00Z").getUTCDay() + 6) % 7));
 
 export function inkFor(project: string | null, data: DeskData): Ink {
   const r = project ? data.inks[project] : undefined;
@@ -62,6 +64,7 @@ export function buildModel(data: DeskData, now: Date): DeskModel {
     today: { ymd, day: Number(ymd.slice(8)), monthName: now.toLocaleDateString("en-GB", { timeZone: TZ, month: "long" }).toUpperCase(),
       weekday: now.toLocaleDateString("en-GB", { timeZone: TZ, weekday: "long" }) },
     days: dailyTallies(data, now),
+    binders: { day: binderPeriods(data, "day", now), week: binderPeriods(data, "week", now), month: binderPeriods(data, "month", now) },
     week: { commits: weekCommits.length, tasks: data.tasks.filter(t => inWeek(t.date)).length,
       activeDays: new Set(weekCommits.map(c => istYmd(c.date))).size },
   };

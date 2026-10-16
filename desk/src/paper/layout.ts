@@ -1,7 +1,7 @@
 import type { CardVM } from "../data/model";
 
-export interface Block { layer: "typed" | "hand"; text: string; size: number; minSize: number; gapBefore: number; underline?: boolean }
-export interface Line { layer: Block["layer"]; text: string; size: number; y: number; underline?: boolean }
+export interface Block { layer: "typed" | "hand"; text: string; size: number; minSize: number; gapBefore: number; underline?: boolean; ink?: string }
+export interface Line { layer: Block["layer"]; text: string; size: number; y: number; underline?: boolean; ink?: string }
 export type Side = Line[];
 export type Measure = (text: string, layer: Block["layer"], size: number) => number;
 const LINE = 1.3;   // line height as a multiple of font size
@@ -44,7 +44,7 @@ export function layoutSides(blocks: Block[], measure: Measure, box: { width: num
     for (const text of lines) {
       if (y + size * LINE > box.height && sides[sides.length - 1].length) { sides.push([]); y = 0; }
       y += size * LINE;
-      sides[sides.length - 1].push({ layer: blk.layer, text, size, y, underline: blk.underline });
+      sides[sides.length - 1].push({ layer: blk.layer, text, size, y, underline: blk.underline, ...(blk.ink ? { ink: blk.ink } : {}) });
     }
   }
   return sides;

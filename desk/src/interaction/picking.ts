@@ -5,7 +5,7 @@ import { isClick } from "./input";
 import { firstFocusable } from "./hits";
 
 interface Ctx { canvas: HTMLCanvasElement; camera: THREE.PerspectiveCamera; scene: THREE.Scene; reg: Registry;
-  dispatch: (a: Action) => void; stack: () => Stack; hover: (id: string | undefined) => void; kick: () => void; motion: number; label: HTMLElement }
+  dispatch: (a: Action) => void; stack: () => Stack; linkOf: (id: string) => Action | null; hover: (id: string | undefined) => void; kick: () => void; motion: number; label: HTMLElement }
 
 const NAMES: Record<string, string> = { cards: "In progress", stickies: "To do", calendar: "Calendar", notepad: "Today's tally", cardPile: "More in progress", stickyPile: "More to do" };
 
@@ -47,7 +47,7 @@ export function createPicking(ctx: Ctx) {
       if (e.button === 2) { ctx.dispatch({ type: "back" }); return; }
       const f = pick(e), t = top(ctx.stack());
       if (!f) { ctx.dispatch({ type: "back" }); return; }                                   // empty desk = back
-      if (t.kind === "focus" && t.id === f.item.id) ctx.dispatch({ type: "turn", dir: 1 }); // click the focused stack = turn a page
+      if (t.kind === "focus" && t.id === f.item.id) ctx.dispatch(ctx.linkOf(f.item.id) ?? { type: "turn", dir: 1 });   // follow its link, or turn a page
       else ctx.dispatch({ type: "select", id: f.item.id });
     },
     onPointerLeave() { setHover(undefined); parallaxGoal.set(0, 0, 0); ctx.kick(); },

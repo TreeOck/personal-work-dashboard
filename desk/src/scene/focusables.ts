@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { Item } from "../camera/director";
+import type { Action, Item } from "../camera/director";
 import type { V3 } from "../camera/shots";
 
 /** The physical pages of a focusable thing: a clipped card stack you thumb through ("thumb"), or pages hinged at the top
@@ -11,6 +11,8 @@ export interface Pages {
   size: { w: number; d: number };
   flip?: { root0: number; far0: number; q: number; L: number }; // flip only: where flipped pages lie (see reading.ts padFlip)
   pose?: (k: number, p: number) => void;                       // flip only: the object places page k at progress p itself (calendar)
+  block?: boolean;                                             // several turns in a row go over together, as one block (binders)
+  show?: (open: boolean) => void;                              // binders: draw the leaves only while open
   low: THREE.Texture;                                          // top page at overview resolution
   base: number;                                                // the paper colour (cream card, yellow sticky, pad cream)
   body?: THREE.Mesh; bodyBase: number;                         // solid side walls around the pages still in the stack (multi-page only)
@@ -28,6 +30,10 @@ export interface Focusable {
   rest: { position: THREE.Vector3; rotation: THREE.Euler };   // where it lies now (a fanned pile member rests in its fan slot)
   held?: boolean;                                             // picked up to be read (cards, stickies); else read where it lies
   clip?: { mesh: THREE.Object3D; y: number };                 // paper clip on a multi-card stack; y = its height above the stack base
+  heldAt?: THREE.Vector3; heldRotY?: number; heldShot?: THREE.Vector3;   // where it is held, turned how, and where to look (default HELD)
+  link?: (top: number) => Action;                              // clicking it while reading goes elsewhere (calendar -> Day binder)
+  slide?: THREE.Vector3;                                       // slid out this far before lifting (a binder from a stack)
+  rack?: { take(id: string): string[]; put(id: string): void };   // binders: rests change as one is taken out and put back
 }
 type Pose = Focusable["home"];
 const copy = (p: Pose): Pose => ({ position: p.position.clone(), rotation: p.rotation.clone() });

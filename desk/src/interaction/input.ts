@@ -9,6 +9,7 @@ export function keyToAction(key: string, shift = false): Action | null {
     case " ": return { type: "turn", dir: shift ? -1 : 1 };
     case "ArrowLeft": return { type: "neighbor", dir: -1 };
     case "ArrowRight": return { type: "neighbor", dir: 1 };
+    case "Home": return { type: "home" };
     case "0": case "1": case "2": case "5": case "6": return { type: "key", key };
     default: return null;                                     // 3, 4, 7 and 8 belong to Plans 2b and 3
   }

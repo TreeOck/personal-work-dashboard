@@ -79,3 +79,29 @@ describe("handheld stacks", () => {
     expect(top(reduce(s, { type: "turn", dir: -1 }, held))).toEqual({ kind: "focus", id: "card:t", page: 1, dir: -1 });
   });
 });
+
+// Plan 2b binders: sheet 0 is the cover, so an open binder never shows page 0; it opens at the current period, ← → jump
+// between periods (marks = first sheet of each period), Space turns single sheets, Home goes back to the current period.
+describe("binders", () => {
+  const bind: Item[] = [{ id: "binder:day", group: "binders", pages: 9, turnable: true, min: 1, start: 7, marks: [1, 3, 4, 7, 8] },
+    { id: "binder:week", group: "binders", pages: 3, turnable: true, min: 1, start: 2, marks: [1, 2] }];
+  const pg = (s: Stack) => (top(s) as { page: number }).page;
+  test("opens at the current period, not the cover", () => { expect(pg(run([{ type: "select", id: "binder:day" }], START, bind))).toBe(7); });
+  test("← → jump to the previous / next period's first sheet, clamped at both ends", () => {
+    const s = run([{ type: "select", id: "binder:day" }], START, bind);
+    expect(pg(reduce(s, { type: "neighbor", dir: -1 }, bind))).toBe(4);
+    expect(pg(run([{ type: "turn", dir: 1 }, { type: "neighbor", dir: -1 }], s, bind))).toBe(7);    // mid-period: back to its start
+    expect(pg(reduce(s, { type: "neighbor", dir: 1 }, bind))).toBe(8);
+    expect(reduce(run([{ type: "neighbor", dir: 1 }], s, bind), { type: "neighbor", dir: 1 }, bind)).toEqual(run([{ type: "neighbor", dir: 1 }], s, bind));
+  });
+  test("Space turns single sheets and never back onto the cover; Home returns to the current period", () => {
+    const s = run([{ type: "select", id: "binder:day" }, { type: "neighbor", dir: -1 }, { type: "neighbor", dir: -1 }, { type: "neighbor", dir: -1 }], START, bind);
+    expect(pg(s)).toBe(1);
+    expect(reduce(s, { type: "turn", dir: -1 }, bind)).toBe(s);
+    expect(pg(reduce(s, { type: "turn", dir: 1 }, bind))).toBe(2);
+    expect(pg(reduce(s, { type: "home" }, bind))).toBe(7);
+  });
+  test("select can open at a given sheet (the calendar opens the Day binder at a date)", () => {
+    expect(pg(run([{ type: "select", id: "binder:day", page: 3 }], START, bind))).toBe(3);
+  });
+});

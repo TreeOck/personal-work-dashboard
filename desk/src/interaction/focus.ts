@@ -49,13 +49,13 @@ export function createFocus(ctx: Ctx) {
 
   // ---- where things go -------------------------------------------------------------------------------------------
   const restOf = (r: Reader) => r.f.rest;
-  const heldLocal = (r: Reader) => r.f.object.parent!.worldToLocal(HELD.clone());
+  const heldLocal = (r: Reader) => r.f.object.parent!.worldToLocal((r.f.heldAt ?? HELD).clone());
   function shotFor(frame: Frame): Shot {
     if (frame.kind === "overview") return { position: [...OVERVIEW.position], target: [...OVERVIEW.target] };
     if (frame.kind === "fan") { const f = reg.get(frame.pile)!; const c = f.home.position;
       return focusShot([c.x, c.y + 0.02, c.z], FLAT_NORMAL, f.size, CAMERA.fov, camera.aspect, 0.9); }
     const f = reg.get(frame.id)!;                                    // from where it will be, never from mid-move
-    const c = f.held ? HELD.clone() : f.object.parent!.localToWorld(f.rest.position.clone());
+    const c = f.held ? (f.heldShot ?? f.heldAt ?? HELD).clone() : f.object.parent!.localToWorld(f.rest.position.clone());
     return focusShot([c.x, c.y, c.z] as V3, f.normal, f.size, CAMERA.fov, camera.aspect);
   }
   function moveCamera(shot: Shot) {
@@ -66,12 +66,12 @@ export function createFocus(ctx: Ctx) {
   }
 
   /** Ease an object to its rest pose (plus the hover lift if the pointer is on it). */
-  function settle(r: Reader) {
+  function settle(r: Reader, delay = 0) {
     const o = r.f.object, to = restOf(r).position.clone(), toRy = restOf(r).rotation.y;
     if (hovered === r.f.item.id && !r.want) to.y += HOVER_LIFT;
     if (o.position.distanceTo(to) < 1e-7 && Math.abs(o.rotation.y - toRy) < 1e-7) return;
     const from = o.position.clone(), fromRy = o.rotation.y, far = from.distanceTo(to) > 0.01;
-    animator.play("pose:" + r.f.item.id, ms(far ? FAN_MS : HOVER_MS), p => { o.position.lerpVectors(from, to, p); o.rotation.y = fromRy + (toRy - fromRy) * p; }, now());
+    animator.play("pose:" + r.f.item.id, ms(far ? FAN_MS : HOVER_MS), p => { o.position.lerpVectors(from, to, p); o.rotation.y = fromRy + (toRy - fromRy) * p; }, now() + delay);
   }
 
   // ---- the clip ------------------------------------------------------------------------------------------------------
@@ -94,11 +94,18 @@ export function createFocus(ctx: Ctx) {
   // ---- whole-object moves -------------------------------------------------------------------------------------------
   function pickUp(r: Reader) {
     r.busy = true; hand = r.f.item.id;
-    const o = r.f.object, lift = () => {
-      const from = o.position.clone(), fromRy = o.rotation.y, to = heldLocal(r), s = (t: number) => { const x = Math.min(1, Math.max(0, t)); return x * x * (3 - 2 * x); };
-      animator.play("pose:" + r.f.item.id, ms(LIFT_MS), p => {       // straight up first, then across to you
-        o.position.set(from.x + (to.x - from.x) * s((p - 0.2) / 0.8), from.y + (to.y - from.y) * s(p / 0.5), from.z + (to.z - from.z) * s((p - 0.2) / 0.8));
-        o.rotation.y = fromRy * (1 - s((p - 0.2) / 0.8));
+    const o = r.f.object, toRy = r.f.heldRotY ?? 0, lift = () => {
+      const s = (t: number) => { const x = Math.min(1, Math.max(0, t)); return x * x * (3 - 2 * x); };
+      const start = o.position.clone(), out = r.f.slide ? start.clone().add(r.f.slide) : start, k = r.f.slide ? 0.35 : 0;   // slide out first
+      const fromRy = o.rotation.y, to = heldLocal(r);
+      const above = r.f.rack?.take(r.f.item.id) ?? [];                // the binders on top of it drop once it is clear
+      above.forEach(id => { const w = readers.get(id); if (w && !w.busy && w.pose === "rest") settle(w, ms(LIFT_MS) * (k + 0.05)); });
+      r.f.pages?.show?.(true);
+      animator.play("pose:" + r.f.item.id, ms(LIFT_MS * (1 + k)), p0 => {
+        if (p0 < k / (1 + k)) { o.position.lerpVectors(start, out, s(p0 * (1 + k) / k)); return; }
+        const p = (p0 - k / (1 + k)) * (1 + k);                       // then straight up, then across to you
+        o.position.set(out.x + (to.x - out.x) * s((p - 0.2) / 0.8), out.y + (to.y - out.y) * s(p / 0.5), out.z + (to.z - out.z) * s((p - 0.2) / 0.8));
+        o.rotation.y = fromRy + (toRy - fromRy) * s((p - 0.2) / 0.8);
       }, now(), { done: () => { r.pose = "held"; r.busy = false; pump(r); } });
       if (r.f.clip) clipTo(r, new THREE.Vector3(0, r.clipDrop, 0), LIFT_MS * 0.45);   // once the stack is clear, set the clip down
     };
@@ -110,14 +117,15 @@ export function createFocus(ctx: Ctx) {
 
   function putDown(r: Reader) {
     r.busy = true;
-    const o = r.f.object, rest = restOf(r), from = o.position.clone(), to = rest.position.clone(), toRy = rest.rotation.y;
+    r.f.rack?.put(r.f.item.id);                                       // a binder goes back on top of the stack
+    const o = r.f.object, rest = restOf(r), from = o.position.clone(), to = rest.position.clone(), toRy = rest.rotation.y, fromRy = o.rotation.y;
     const s = (t: number) => { const x = Math.min(1, Math.max(0, t)); return x * x * (3 - 2 * x); };
     if (r.f.clip) { holderAt(r, rest); clipTo(r, CLIP_OFF, 0); }      // lift the clip off the spot before the stack lands
     animator.play("pose:" + r.f.item.id, ms(LIFT_MS), p => {         // across first, then straight down
       o.position.set(from.x + (to.x - from.x) * s(p / 0.8), from.y + (to.y - from.y) * s((p - 0.5) / 0.5), from.z + (to.z - from.z) * s(p / 0.8));
-      o.rotation.y = toRy * s(p / 0.8);
+      o.rotation.y = fromRy + (toRy - fromRy) * s(p / 0.8);
     }, now(), { done: () => {
-      const landed = () => { r.pose = "rest"; r.busy = false; hand = null; faces(r); pump(r); for (const w of readers.values()) if (w !== r) pump(w); };
+      const landed = () => { r.pose = "rest"; r.busy = false; hand = null; r.f.pages?.show?.(false); faces(r); pump(r); for (const w of readers.values()) if (w !== r) pump(w); };
       if (!r.f.clip) return landed();
       clipTo(r, new THREE.Vector3(), 0, () => { o.add(r.f.clip!.mesh); r.f.clip!.mesh.position.set(0, 0, 0); r.f.clip!.mesh.quaternion.identity(); landed(); });
     } });
@@ -138,14 +146,15 @@ export function createFocus(ctx: Ctx) {
         if (pages.body) setBodyHeight(pages.body, pages.bodyBase + body.base, body.h);
       }, now(), { done });
     } else {
-      const k = dir === 1 ? r.top : r.top - 1, page = pages.meshes[k];
-      next = r.top + dir;
+      let m = 1; if (pages.block) while (r.queue[0] === dir) { r.queue.shift(); m++; }   // a run of turns goes over as one block
+      next = r.top + dir * m;
+      const ks = [...Array(m)].map((_, j) => (dir === 1 ? r.top + j : r.top - 1 - j));
       const place = pages.pose ?? ((i: number, p: number) => { const f = padFlip(i, p, { home: (j: number) => pages.homes[j].position.y, ...pages.flip! });
-        page.position.y = f.y; page.rotation.x = f.angle; });
-      if (dir === 1) { if (next < n) setFace(r, next, r.want ? "hi" : "low"); body(r, n - k - 1); }   // the page has left the pad
-      else setFace(r, k, r.want ? "hi" : "low");
-      animator.play("stack:" + id, dur, p => place(k, dir === 1 ? p : 1 - p), now(),
-        { done: () => { if (dir === -1) body(r, n - k); done(); } });
+        pages.meshes[i].position.y = f.y; pages.meshes[i].rotation.x = f.angle; });
+      if (dir === 1) { if (next < n) setFace(r, next, r.want ? "hi" : "low"); body(r, n - next); }   // the pages have left the pad
+      else setFace(r, next, r.want ? "hi" : "low");
+      animator.play("stack:" + id, m > 1 ? ms(TURN_MS) : dur, p => ks.forEach(i => place(i, dir === 1 ? p : 1 - p)), now(),
+        { done: () => { if (dir === -1) body(r, n - next); done(); } });
     }
   }
   const body = (r: Reader, remaining: number) => { const p = r.f.pages!; if (p.body) setBodyHeight(p.body, p.bodyBase, stackBodyHeight(remaining)); };
@@ -201,6 +210,8 @@ export function createFocus(ctx: Ctx) {
   return {
     dispatch(a: Action) { const next = reduce(stack, a, reg.items()); if (next !== stack) { const prev = stack; stack = next; apply(prev, next); } },
     stack: () => stack,
+    /** Where clicking the focused thing leads, given the page it shows (null: just turn the page). */
+    linkOf(id: string): Action | null { const r = readers.get(id); return r?.f.link ? r.f.link(r.top) : null; },
     /** The pointer is over this object (or nothing). Only something lying at rest lifts a little. */
     hover(id: string | undefined) {
       if (id === hovered) return; const old = hovered; hovered = id;

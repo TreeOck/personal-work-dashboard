@@ -4,7 +4,8 @@ import { Registry } from "../scene/focusables";
 import type { materials } from "../scene/materials";
 import { addCards, addStickies, addTray } from "./paperObjects";
 import { addPenCup } from "./pens";
-import { addBinders, addCalendar, addNotepad } from "./stationery";
+import { addCalendar, addNotepad } from "./stationery";
+import { addBinders } from "./binders";
 
 export function buildObjects(scene: THREE.Scene, model: DeskModel, m: ReturnType<typeof materials>, matTop: number): Registry {
   const reg = new Registry();
@@ -14,6 +15,6 @@ export function buildObjects(scene: THREE.Scene, model: DeskModel, m: ReturnType
   addPenCup(scene, model, m);
   addCalendar(scene, model, m, reg);
   addNotepad(scene, model, m, reg);
-  addBinders(scene, m);
+  addBinders(scene, model, m, reg);
   return reg;
 }
