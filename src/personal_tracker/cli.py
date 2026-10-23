@@ -82,16 +82,19 @@ def run_init(args):
     root, emails, tz = args.root, args.email or [], args.timezone
     summariser = [] if args.no_summariser else split_or_none(args.summariser)
     if sys.stdin.isatty():   # ask for whatever wasn't passed
-        root = root or input("Folder that contains your git repos (e.g. ~/code): ")
-        emails = emails or input("Email(s) you commit as, comma-separated: ").split(",")
-        if tz is None:
-            default = setup.detect_timezone()
-            tz = input("Timezone for day boundaries [%s] (blank = this computer's zone): " % (default or "this computer's zone")).strip() or default
-        if summariser is None:
-            default = setup.default_summariser()
-            shown = " ".join(default) if default else "none"
-            ans = input("Command that writes summaries (prompt on stdin, JSON out), or 'none' [%s]: " % shown).strip()
-            summariser = [] if ans.lower() == "none" else setup.split_command(ans) if ans else default
+        try:
+            root = root or input("Folder that contains your git repos (e.g. ~/code): ")
+            emails = emails or input("Email(s) you commit as, comma-separated: ").split(",")
+            if tz is None:
+                default = setup.detect_timezone()
+                tz = input("Timezone for day boundaries [%s] (blank = this computer's zone): " % (default or "this computer's zone")).strip() or default
+            if summariser is None:
+                default = setup.default_summariser()
+                shown = " ".join(default) if default else "none"
+                ans = input("Command that writes summaries (prompt on stdin, JSON out), or 'none' [%s]: " % shown).strip()
+                summariser = [] if ans.lower() == "none" else setup.split_command(ans) if ans else default
+        except EOFError:     # Windows reports isatty() True for NUL, which is what scripts and agents get
+            raise TrackerError("--root and --email are required when not running interactively") from None
     elif not root or not emails:
         raise TrackerError("--root and --email are required when not running interactively")
     elif summariser is None:

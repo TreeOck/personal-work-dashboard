@@ -15,13 +15,17 @@ from personal_tracker.server import todo_argv
 def live(sandbox):
     """The sandbox's edit server running for real; yields (base url, token, sandbox)."""
     sandbox("add", "Seed")                                          # builds dashboard.html
-    p = subprocess.Popen([sys.executable, "-m", "personal_tracker", "serve"], env=sandbox.env, stderr=subprocess.DEVNULL)
+    log = open(sandbox.dir / "serve.log", "w", encoding="utf-8")
+    p = subprocess.Popen([sys.executable, "-m", "personal_tracker", "serve"], env=sandbox.env, stderr=log)
     try:
-        for _ in range(50):
-            if (sandbox.dir / "server.json").exists():
+        for _ in range(300):                                            # 30 s: CI runners can be slow
+            if (sandbox.dir / "server.json").exists() or p.poll() is not None:
                 break
             time.sleep(0.1)
-        base = "http://127.0.0.1:%d" % json.loads((sandbox.dir / "server.json").read_text())["port"]
+        if not (sandbox.dir / "server.json").exists():
+            log.flush()
+            pytest.fail("the server did not start (exit code %s):\n%s" % (p.poll(), (sandbox.dir / "serve.log").read_text(encoding="utf-8")))
+        base = "http://127.0.0.1:%d" % json.loads((sandbox.dir / "server.json").read_text(encoding="utf-8"))["port"]
         html = urllib.request.urlopen(base + "/").read().decode()
         token = re.search(r'name="tracker-token" content="([^"]+)"', html).group(1)
         yield base, token, sandbox
@@ -153,7 +157,7 @@ def ensure_in(sandbox):
     r = subprocess.run([sys.executable, "-c", "from personal_tracker import server; print(server.ensure())"],
                        env=sandbox.env, capture_output=True, text=True, timeout=30)
     assert r.returncode == 0, r.stderr
-    return int(r.stdout.strip()), json.loads((sandbox.dir / "server.json").read_text())["pid"]
+    return int(r.stdout.strip()), json.loads((sandbox.dir / "server.json").read_text(encoding="utf-8"))["pid"]
 
 
 def register(sandbox, pid, port):
@@ -231,3 +235,17 @@ def test_open_dashboard_uses_the_browser_module(monkeypatch, tmp_path, capsys):
     server.open_dashboard()
     assert opened[1] == (tmp_path / "dashboard.html").as_uri()
     assert "read-only" in capsys.readouterr().err
+
+
+def test_server_start_does_not_do_a_reverse_dns_lookup(monkeypatch):
+    # http.server's default bind calls socket.getfqdn(), which can take many seconds on a Mac with slow DNS (CI runners)
+    import socket
+
+    def slow(*a, **k):
+        raise AssertionError("socket.getfqdn() must not be called when the server starts")
+    monkeypatch.setattr(socket, "getfqdn", slow)
+    srv = server.make_server(0)
+    try:
+        assert srv.server_address[0] == "127.0.0.1" and srv.server_name == "127.0.0.1"
+    finally:
+        srv.server_close()

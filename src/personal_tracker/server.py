@@ -14,6 +14,7 @@ import platform
 import re
 import secrets
 import signal
+import socketserver
 import subprocess
 import sys
 import time
@@ -131,11 +132,23 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(200, {"ok": True, "out": r.stdout.strip(), "warning": err or None})
 
 
+class _Server(ThreadingHTTPServer):   # one thread per connection; the CLI's file lock serialises edits
+    def server_bind(self):
+        # http.server's version calls socket.getfqdn(), a reverse-DNS lookup that can take many seconds on a Mac
+        # with slow DNS (the server then looks like it never started). We only ever listen on 127.0.0.1.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = "127.0.0.1", self.server_address[1]
+
+
+def make_server(port):
+    return _Server(("127.0.0.1", port), Handler)
+
+
 def serve():
     try:
-        srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)   # one thread per connection; todo.py's lock serialises edits
+        srv = make_server(PORT)
     except OSError:
-        srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        srv = make_server(0)
     srv.token = secrets.token_urlsafe(32)
     srv.timeout, srv.last = 60, time.time()
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))   # so the finally below removes server.json
@@ -234,7 +247,7 @@ def ensure():
     with open(paths.file("server.log"), "a", encoding="utf-8") as log:
         subprocess.Popen([background_python(), "-m", "personal_tracker", "serve"],
                          stdout=log, stderr=log, stdin=subprocess.DEVNULL, **detach_kwargs())
-    for _ in range(50):
+    for _ in range(150):   # up to 15 s: a cold Python start on a slow machine can take a while
         time.sleep(0.1)
         port = running_port()
         if port:

@@ -95,6 +95,20 @@ def test_init_prompts_when_interactive(home, monkeypatch, capsys):
     assert cfg.timezone == "Asia/Kolkata" and cfg.summariser is None
 
 
+def test_init_with_an_unusable_stdin_asks_for_flags_instead_of_crashing(home, monkeypatch, capsys):
+    # Windows reports isatty() True for NUL (what scripts and agents get), then input() hits end-of-file
+    from personal_tracker import cli
+
+    def eof(prompt=""):
+        raise EOFError
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True, raising=False)
+    monkeypatch.setattr("builtins.input", eof)
+    assert cli.main(["init"]) == 1
+    err = capsys.readouterr().err
+    assert "--root" in err and "--email" in err and "Traceback" not in err
+    assert not (home / "config.json").exists()
+
+
 # ---- migrate
 
 def test_migrate_copies_verifies_and_renames(home, tmp_path):

@@ -35,7 +35,7 @@ def test_without_desk_template_only_dashboard_is_built(site):
 def test_with_desk_template_both_pages_get_the_same_data(site):
     (site.dir / "desk-template.html").write_text("<script>window.__DESK_DATA__=/*__DATA__*/null;</script>")
     assert site().returncode == 0
-    desk = (site.dir / "desk.html").read_text()
+    desk = (site.dir / "desk.html").read_text(encoding="utf-8")
     blob = json.loads(desk.split("window.__DESK_DATA__=")[1].split(";</script>")[0])
     assert set(blob["inks"]) == {"alpha", "beta"}
     assert blob["inks"]["alpha"]["hex"].startswith("#")
@@ -43,14 +43,14 @@ def test_with_desk_template_both_pages_get_the_same_data(site):
 
 def test_inks_are_persisted_and_stable_across_builds(site):
     site()
-    first = json.loads((site.dir / "inks.json").read_text())
+    first = json.loads((site.dir / "inks.json").read_text(encoding="utf-8"))
     site()
-    assert json.loads((site.dir / "inks.json").read_text()) == first
+    assert json.loads((site.dir / "inks.json").read_text(encoding="utf-8")) == first
 
 
 def test_dev_data_written_for_vite(site):
     site()
-    d = json.loads((site.dir / "dev-data.json").read_text())
+    d = json.loads((site.dir / "dev-data.json").read_text(encoding="utf-8"))
     assert "commits" in d and "inks" in d
 
 
@@ -64,7 +64,7 @@ def test_broken_ink_file_never_blocks_the_dashboard(site):
 
 
 def test_build_inlines_timezone_and_version(site):
-    cfg = json.loads((site.dir / "config.json").read_text())
+    cfg = json.loads((site.dir / "config.json").read_text(encoding="utf-8"))
     cfg["timezone"] = "Asia/Kolkata"
     (site.dir / "config.json").write_text(json.dumps(cfg))
     assert site().returncode == 0
