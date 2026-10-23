@@ -73,12 +73,18 @@ def test_linux_prints_a_crontab_line_and_changes_nothing(os_calls, capsys):
 
 def test_macos_on_twice_leaves_one_job_with_the_new_time(os_calls, tmp_path):
     plist = schedule.plist_path()
-    uid = os.getuid()
+    uid = schedule._uid()
     schedule.on("17:00", plat="darwin")
     schedule.on("18:30", plat="darwin")
     assert os_calls.calls == [["launchctl", "bootout", "gui/%d/%s" % (uid, LABEL)], ["launchctl", "bootstrap", "gui/%d" % uid, str(plist)]] * 2
     assert plistlib.loads(plist.read_bytes())["StartCalendarInterval"] == {"Hour": 18, "Minute": 30}
     assert [p.name for p in plist.parent.iterdir()] == [LABEL + ".plist"]
+
+
+def test_macos_code_path_runs_on_a_system_without_getuid(os_calls, monkeypatch):
+    monkeypatch.delattr(os, "getuid", raising=False)             # Windows has no os.getuid; CI runs these tests there too
+    schedule.on("17:00", plat="darwin")
+    assert os_calls.calls[0] == ["launchctl", "bootout", "gui/0/" + LABEL]
 
 
 def test_macos_not_loaded_on_first_install_is_fine_but_bootstrap_failure_is_reported(os_calls):

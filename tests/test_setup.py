@@ -1,5 +1,6 @@
 import json
 import shutil
+import sys
 from datetime import date
 
 import pytest
@@ -55,6 +56,7 @@ def test_init_rejects_bad_input_without_writing(home):
     assert not (home / "config.json").exists()
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="reads /etc/localtime, a Unix symlink; symlinks need extra rights on Windows")
 def test_detect_timezone_from_localtime_symlink(tmp_path):
     zi = tmp_path / "usr" / "share" / "zoneinfo" / "Asia"
     zi.mkdir(parents=True)

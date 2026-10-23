@@ -57,8 +57,12 @@ def crontab_line(python, at, home):
     return "%d %d * * * %s%s -m personal_tracker refresh --quiet" % (minute, hour, env, shlex.quote(python))
 
 
+def _uid():
+    return os.getuid() if hasattr(os, "getuid") else 0     # only the macOS path uses it; Windows has no getuid
+
+
 def _launchd_target():
-    return "gui/%d/%s" % (os.getuid(), LABEL)
+    return "gui/%d/%s" % (_uid(), LABEL)
 
 
 def on(at="17:00", plat=sys.platform):
@@ -71,7 +75,7 @@ def on(at="17:00", plat=sys.platform):
         plist.parent.mkdir(parents=True, exist_ok=True)
         plist.write_text(launchd_plist(sys.executable, at, home), encoding="utf-8")
         _run(["launchctl", "bootout", _launchd_target()])           # replace a running copy; "not loaded" is fine
-        r = _run(["launchctl", "bootstrap", "gui/%d" % os.getuid(), str(plist)])
+        r = _run(["launchctl", "bootstrap", "gui/%d" % _uid(), str(plist)])
         if r.returncode != 0:
             raise TrackerError("launchctl couldn't load the job: %s" % (r.stderr.strip() or r.stdout.strip() or r.returncode))
         print("Daily refresh on: %s at %s (%s)" % ("macOS LaunchAgent", at, plist))
