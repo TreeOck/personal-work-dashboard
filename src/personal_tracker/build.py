@@ -8,7 +8,7 @@ import sys
 from datetime import datetime
 from importlib import resources
 
-from . import files, inks, paths
+from . import __version__, config, files, inks, paths
 from .errors import TrackerError
 from .links import link
 
@@ -29,6 +29,7 @@ def build():
         data = files.read_json(paths.file("commits.json"))
         if data is None:
             raise TrackerError("no commits.json yet -- run: tracker scan")
+        data["timezone"], data["version"] = config.load().timezone, __version__
         data["tasks"] = files.read_json(paths.file("tasks.json"), {"tasks": []})["tasks"]
         data["todo"] = files.read_json(paths.file("todo.json"), {"items": []})["items"]
         _now = datetime.now().astimezone()

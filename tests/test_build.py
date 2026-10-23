@@ -61,3 +61,19 @@ def test_broken_ink_file_never_blocks_the_dashboard(site):
     assert r.returncode == 0, r.stderr
     assert (site.dir / "dashboard.html").exists()
     assert "ink" in (r.stdout + r.stderr).lower() and "warning" in (r.stdout + r.stderr).lower()
+
+
+def test_build_inlines_timezone_and_version(site):
+    cfg = json.loads((site.dir / "config.json").read_text())
+    cfg["timezone"] = "Asia/Kolkata"
+    (site.dir / "config.json").write_text(json.dumps(cfg))
+    assert site().returncode == 0
+    html = (site.dir / "dashboard.html").read_text(encoding="utf-8")
+    assert '"timezone": "Asia/Kolkata"' in html and '"version": "0.8.0"' in html
+    assert "const TZ = DATA.timezone" in html and 'timeZone: "Asia/Kolkata"' not in html
+
+
+def test_page_has_no_hard_coded_zone_label(site):
+    site()
+    html = (site.dir / "dashboard.html").read_text(encoding="utf-8")
+    assert " IST`" not in html and ' IST"' not in html

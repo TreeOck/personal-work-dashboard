@@ -4,10 +4,12 @@ Default window is 14 days. Existing commits.json is merged by hash, so history
 older than the window is kept once it has been seen.
 """
 import os
+import shutil
 import subprocess
 from datetime import datetime, timedelta
 
 from . import config, files, paths
+from .errors import TrackerError
 
 SEP = "\x1e"  # record separator between commits
 FIELD = "\x1f"
@@ -18,6 +20,11 @@ def git(repo, *args):
         ["git", "-C", repo] + list(args),
         capture_output=True, text=True, encoding="utf-8", errors="replace",
     ).stdout
+
+
+def rel_posix(repo, root, pathmod=os.path):
+    """Repo path relative to the root, always with "/" (stored in commits.json and matched by the page)."""
+    return pathmod.relpath(repo, root).replace(pathmod.sep, "/")
 
 
 def find_repos(root):
@@ -70,6 +77,8 @@ def scan_repo(repo, since, patterns):
 
 def run(days=14, since=None):
     """Scan every repo under the configured root; returns how many commits commits.json now holds."""
+    if not shutil.which("git"):
+        raise TrackerError("git not found on PATH -- install git and try again")
     cfg = config.load()
     root, patterns = str(cfg.root), cfg.author_emails
     since = since or (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
@@ -80,10 +89,10 @@ def run(days=14, since=None):
         existing[(c["repo_path"], c["sha"])] = c
 
     for repo in find_repos(root):
-        rel = os.path.relpath(repo, root)
-        project = rel.split(os.sep)[0]
+        rel = rel_posix(repo, root)
+        project = rel.split("/")[0]
         for sha, c in scan_repo(repo, since, patterns).items():
-            c.update({"repo_path": rel, "repo": os.path.basename(rel), "project": project})
+            c.update({"repo_path": rel, "repo": rel.split("/")[-1], "project": project})
             existing[(rel, sha)] = c  # same hash in same repo = one commit
 
     commits = sorted(existing.values(), key=lambda c: c["date"])
