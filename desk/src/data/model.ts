@@ -1,5 +1,5 @@
 import type { Commit, DeskData, Note, TodoItem } from "./types";
-import palette from "./inks.json";
+import palette from "../../../src/personal_tracker/data/inks.json";
 import { binderPeriods, type BinderKind, type Period } from "./binders";
 
 export interface Ink { hex: string; name: string; variant: number }

@@ -1,36 +1,34 @@
-#!/usr/bin/env python3
 """Summarise commits that no task covers yet, using `claude -p` (no tools, JSON out).
 
-  python3 summarise.py                     # summarise new commits (run by refresh.sh)
-  python3 summarise.py --backfill-threads  # give a thread to every task that has none
+  tracker summarise                     # summarise new commits (run by `tracker refresh`)
+  tracker summarise --backfill-threads  # give a thread to every task that has none
 
-Claude only returns JSON; this script validates it and merges it into tasks.json.
+Claude only returns JSON; this module validates it and merges it into tasks.json.
 On any failure tasks.json is left untouched and the dashboard keeps showing those
 commits as 'unsummarised' (or the tasks without a thread).
 """
 import json
-import os
 import re
 import subprocess
-import sys
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+from . import files, paths
+from .errors import TrackerError
+
 IST = ZoneInfo("Asia/Kolkata")
 KINDS = {"feature", "fix", "infra", "docs"}
 
 
 def load(n):
-    with open(os.path.join(HERE, n)) as f:
-        return json.load(f)
+    data = files.read_json(paths.file(n))
+    if data is None:
+        raise TrackerError("no %s yet -- run: tracker scan" % n)
+    return data
 
 
 def save_tasks(doc):
-    out = os.path.join(HERE, "tasks.json")
-    with open(out + ".tmp", "w") as f:
-        json.dump(doc, f, indent=1, ensure_ascii=False)
-    os.replace(out + ".tmp", out)
+    files.write_json(paths.file("tasks.json"), doc)
 
 
 def ist(iso):
@@ -99,14 +97,14 @@ def validate_backfill(assign, tasks, known_threads):
 def ask_claude(prompt):
     r = subprocess.run(["claude", "-p", "--model", "sonnet", "--tools", "", "--no-session-persistence",
                         "--output-format", "text", prompt],
-                       capture_output=True, text=True, timeout=900, stdin=subprocess.DEVNULL)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900, stdin=subprocess.DEVNULL)
     if r.returncode != 0:
-        sys.exit("claude -p failed (%d): stderr=%s stdout=%s" % (r.returncode, r.stderr.strip()[:500], r.stdout.strip()[:500]))
+        raise TrackerError("claude -p failed (%d): stderr=%s stdout=%s" % (r.returncode, r.stderr.strip()[:500], r.stdout.strip()[:500]))
     txt = re.sub(r"^```(?:json)?\s*|\s*```$", "", r.stdout.strip())
     try:
         return json.loads(txt)
     except Exception as e:
-        sys.exit("could not parse claude output as JSON: %s\n%s" % (e, txt[:500]))
+        raise TrackerError("could not parse claude output as JSON: %s\n%s" % (e, txt[:500])) from e
 
 
 def threads_hint(tasks):
@@ -155,7 +153,7 @@ Existing threads by project:
         new = ask_claude(prompt)["tasks"]
         validate_new_tasks(new, orphans, thread_projects(doc["tasks"]))
     except (KeyError, TypeError, ValueError) as e:
-        sys.exit("rejected claude output: %s" % e)
+        raise TrackerError("rejected claude output: %s" % e) from e
     taken = {t["id"] for t in doc["tasks"]}
     for t in new:
         t["thread"] = t["thread"].strip()
@@ -185,7 +183,7 @@ Existing threads by project:
         assign = ask_claude(prompt)["threads"]
         validate_backfill(assign, doc["tasks"], thread_projects(doc["tasks"]))
     except (KeyError, TypeError, ValueError) as e:
-        sys.exit("rejected claude output: %s" % e)
+        raise TrackerError("rejected claude output: %s" % e) from e
     for t in need:
         t["thread"] = assign[t["id"]].strip()
     save_tasks(doc)
@@ -204,8 +202,8 @@ def dedupe_ids(doc):
     return fixed
 
 
-if __name__ == "__main__":
+def run(backfill=False):
     doc = load("tasks.json")
     if dedupe_ids(doc):
         save_tasks(doc)
-    backfill_threads() if "--backfill-threads" in sys.argv else summarise()
+    backfill_threads() if backfill else summarise()

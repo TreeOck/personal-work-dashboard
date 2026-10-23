@@ -8,14 +8,14 @@ import urllib.request
 
 import pytest
 
-from server import todo_argv
+from personal_tracker.server import todo_argv
 
 
 @pytest.fixture
 def live(sandbox):
-    """The sandbox's server.py running for real; yields (base url, token, sandbox)."""
+    """The sandbox's edit server running for real; yields (base url, token, sandbox)."""
     sandbox("add", "Seed")                                          # builds dashboard.html
-    p = subprocess.Popen([sys.executable, str(sandbox.dir / "server.py"), "serve"], stderr=subprocess.DEVNULL)
+    p = subprocess.Popen([sys.executable, "-m", "personal_tracker", "serve"], env=sandbox.env, stderr=subprocess.DEVNULL)
     try:
         for _ in range(50):
             if (sandbox.dir / "server.json").exists():

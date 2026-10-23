@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from links import link, window
+from personal_tracker.links import link, window
 
 IST = timezone(timedelta(hours=5, minutes=30))
 NOW = datetime(2026, 10, 9, 12, 0, tzinfo=IST)

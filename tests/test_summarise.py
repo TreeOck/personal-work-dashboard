@@ -1,6 +1,6 @@
 import pytest
 
-from summarise import dedupe_ids, unique_id, validate_backfill, validate_new_tasks
+from personal_tracker.summarise import dedupe_ids, unique_id, validate_backfill, validate_new_tasks
 
 ORPHANS = [
     {"sha": "aaaaaaa111", "date": "2026-10-06T10:00:00+05:30", "project": "alpha"},
