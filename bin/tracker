@@ -1,11 +1,12 @@
 #!/bin/bash
-# Personal work tracker. `tracker` opens it; `tracker refresh` rescans git first;
-# add/start/done/drop/note/todo manage the current-tasks list (see todo.py).
+# Personal work tracker. `tracker` opens it (through the local edit server, so the page can change
+# tasks); `tracker refresh` rescans git first; add/start/pause/done/drop/note/todo manage the
+# current-tasks list (see todo.py).
 # Install: ln -s "$PWD/bin/tracker" ~/.local/bin/tracker
 D="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 case "$1" in
-  ""|open) open "$D/dashboard.html" ;;
-  refresh) echo "Refreshing (about a minute)..."; "$D/refresh.sh" && tail -4 "$D/refresh.log"; open "$D/dashboard.html" ;;
+  ""|open) python3 "$D/server.py" open ;;
+  refresh) echo "Refreshing (about a minute)..."; "$D/refresh.sh" && tail -4 "$D/refresh.log"; python3 "$D/server.py" open ;;
   desk)
     if [ "$2" = "refresh" ]; then echo "Refreshing (about a minute)..."; "$D/refresh.sh" && tail -4 "$D/refresh.log"; fi
     if [ ! -f "$D/desk.html" ]; then echo "desk not built yet: cd $D/desk && npm install && npm run assets && npm run build && python3 $D/build.py"; exit 1; fi

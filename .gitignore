@@ -24,3 +24,6 @@ __pycache__/
 desk/node_modules/
 desk/assets/
 desk/dev-data.json
+
+# edit server
+server.json

@@ -17,12 +17,16 @@ def window(item, now):
 
 
 def link(item, commits, now):
-    """Commits in the item's repo (or whole project if no repo) inside its window."""
+    """Commits in the item's repo (or whole project if no repo) inside its window, minus any pauses."""
     w = window(item, now)
     if w is None or not item.get("project"):
         return []
     start, end = w
+    gaps = [(_dt(p["from"]), _dt(p["to"])) for p in item.get("pauses", [])]
+    if item.get("paused_at"):
+        gaps.append((_dt(item["paused_at"]), end))
     return [c for c in commits
             if c["project"] == item["project"]
             and (not item.get("repo") or c["repo"] == item["repo"])
-            and start <= _dt(c["date"]) <= end]
+            and start <= _dt(c["date"]) <= end
+            and not any(g0 < _dt(c["date"]) < g1 for g0, g1 in gaps)]

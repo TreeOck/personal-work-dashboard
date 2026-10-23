@@ -31,10 +31,11 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.personal-work-dashbo
 ## Using it
 
 ```bash
-tracker                      # open the dashboard
+tracker                      # open the dashboard (editable: see below)
 tracker refresh              # rescan git, summarise, rebuild, open
 tracker add "Title" -p myproject -r my-repo [--plan path]   # prints an id, e.g. t-0007
 tracker start t-0007 | tracker done t-0007 | tracker drop t-0007
+tracker pause t-0007 "waiting on review"     # reason optional; `tracker start t-0007` resumes
 tracker note t-0007 "tests passing"
 tracker todo [--all]
 ```
@@ -43,10 +44,12 @@ tracker todo [--all]
 - **Threads:** related tasks across days are grouped into threads (e.g. "Billing: invoice export"). The Week and Month views list threads, and the Month view adds the top 5 as Highlights. Threads are assigned automatically by the summariser.
 - **To-do ↔ commits:** a to-do task is linked to the commits in its repo (or whole project if no repo) made between `tracker start` and `tracker done`. `tracker done` rescans git first, so recent commits count.
 - **Copy standup / Copy report:** standup text (Yesterday / Today / Blockers) or a Markdown report of the period on screen.
-- **Current board:** In progress and To do at the top; finished tasks below as one-line rows grouped by day (today and yesterday open, older days folded).
+- **Current board:** In progress and To do at the top, then a Paused shelf (each card shows why it was paused), then finished tasks as one-line rows grouped by day (today and yesterday open, older days folded).
+- **Pausing:** for work put aside after it started. A paused task stays on the board and in `tracker todo`, isn't listed in standup "Today", and commits made while it's paused aren't linked to it.
+- **Editing from the page:** `tracker` opens the dashboard through a small local server (`server.py`, 127.0.0.1 only), so you can type a new task in the box at the top of Current (`n` focuses it) and, in a task's details panel, start / pause (with a reason) / resume / mark done / drop / reopen it or add a note. Every change runs `todo.py`, exactly like the CLI. Opened as a plain file, the page is read-only. Details: `docs/api/edit-server.md`.
 - **Details panel:** click any card or row, on any view, to open a side panel with all of its notes, start/finish times, the plan, every commit and (for summarised tasks) the other tasks in its thread. `Esc` closes it.
 - **Month heatmap:** hover over a day to see its tasks, then click to open it in the Day view (on touch screens, tap once to preview and again to open).
-- **Keys:** `c` `d` `w` `m` switch views, `←` `→` change period, `/` search, `Esc` close / clear. Search matches task ids too: typing `t-0027` shows that card (from any view), and while searching the Done log covers every finished task, not just the last 7 days.
+- **Keys:** `c` `d` `w` `m` switch views, `←` `→` change period, `/` search, `n` new task (when editable), `Esc` close / clear. Search matches task ids too: typing `t-0027` shows that card (from any view), and while searching the Done log covers every finished task, not just the last 7 days.
 - A *project* is a top-level folder under `root`, and a *repo* is a git repo inside it, up to 3 levels deep.
 
 To have Claude Code keep the Current board in sync, add a rule to your `~/.claude/CLAUDE.md` telling it to run `tracker add` / `start` / `done` when work starts and ends.
@@ -79,7 +82,8 @@ Desk tests: `cd desk && npx vitest run`.
 | `scan.py` | Reads commits by your emails on local and remote branches (14-day lookback by default) and merges them into `commits.json`. Older history is kept. |
 | `summarise.py` | Sends commits that no task covers yet to `claude -p --model sonnet` and asks for JSON. It checks that every commit appears exactly once, with the right date and project, then appends to `tasks.json`. On failure nothing is written, and the commits show as "unsummarised". |
 | `links.py` | Works out which commits belong to each to-do task (computed on every build). |
-| `todo.py` | The current-tasks list (`todo.json`). Each change takes a file lock, writes atomically and rebuilds the page. |
+| `todo.py` | The current-tasks list (`todo.json`, fields in `docs/schema/todo-json.md`). Each change takes a file lock, writes atomically and rebuilds the page. |
+| `server.py` | Local edit server: serves the dashboard with a per-run token and turns its edits into `todo.py` calls. |
 | `build.py` | Inlines the JSON into `template.html` and writes `dashboard.html`. Builds are serialised so the page is never stale. |
 | `refresh.sh` | scan, then summarise, then build. Logs to `refresh.log`. |
 
