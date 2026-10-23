@@ -3,9 +3,10 @@ import argparse
 import contextlib
 import sys
 import webbrowser
-from datetime import datetime
+from datetime import date, datetime
+from pathlib import Path
 
-from . import __version__, build, config, inks, paths, scan, server, summarise, todo
+from . import __version__, build, config, inks, paths, scan, server, setup, summarise, todo
 from .errors import TrackerError
 
 NO_CONFIG_NEEDED = ("init", "migrate")
@@ -15,6 +16,13 @@ def build_parser():
     ap = argparse.ArgumentParser(prog="tracker")
     ap.add_argument("--version", action="version", version="tracker " + __version__)
     sub = ap.add_subparsers(dest="cmd")
+    n = sub.add_parser("init", help="create the config (asks for anything you don't pass)")
+    n.add_argument("--root", help="folder that contains your git repos"); n.add_argument("--email", action="append", help="an email you commit as (repeatable)")
+    n.add_argument("--timezone", help="IANA name for day boundaries, e.g. Europe/London (default: this computer's)")
+    n.add_argument("--summariser", help="command that reads a prompt on stdin and prints JSON, e.g. 'claude -p --model sonnet'")
+    n.add_argument("--no-summariser", action="store_true"); n.add_argument("--force", action="store_true", help="overwrite an existing config")
+    m = sub.add_parser("migrate", help="move data from an old checkout into the data folder")
+    m.add_argument("--from", dest="src", help="folder holding the old config.json / todo.json (default: this checkout)")
     a = sub.add_parser("add", help="add a task; prints its id")
     a.add_argument("title"); a.add_argument("-p", "--project"); a.add_argument("-r", "--repo"); a.add_argument("--plan")
     for c in ("start", "done", "drop"):
@@ -68,9 +76,50 @@ def refresh(quiet=False):
             print("=== done")
 
 
+def run_init(args):
+    root, emails, tz = args.root, args.email or [], args.timezone
+    summariser = [] if args.no_summariser else split_or_none(args.summariser)
+    if sys.stdin.isatty():   # ask for whatever wasn't passed
+        root = root or input("Folder that contains your git repos (e.g. ~/code): ")
+        emails = emails or input("Email(s) you commit as, comma-separated: ").split(",")
+        if tz is None:
+            default = setup.detect_timezone()
+            tz = input("Timezone for day boundaries [%s] (blank = this computer's zone): " % (default or "this computer's zone")).strip() or default
+        if summariser is None:
+            default = setup.default_summariser()
+            shown = " ".join(default) if default else "none"
+            ans = input("Command that writes summaries (prompt on stdin, JSON out), or 'none' [%s]: " % shown).strip()
+            summariser = [] if ans.lower() == "none" else setup.split_command(ans) if ans else default
+    elif not root or not emails:
+        raise TrackerError("--root and --email are required when not running interactively")
+    elif summariser is None:
+        summariser = setup.default_summariser()
+    path = setup.init(root, emails, tz, summariser or None, args.force)
+    print("Wrote %s\nNext: tracker scan --days 30   then   tracker" % path)
+
+
+def split_or_none(line):
+    return setup.split_command(line) if line else None
+
+
+def run_migrate(args):
+    src = Path(args.src) if args.src else setup.default_source()
+    names = setup.migrate(src, date.today())
+    print("Moved %s from %s to %s\nThe originals were renamed *.migrated-%s so nothing old keeps writing to them." % (
+        ", ".join(names), src, paths.home(), date.today().strftime("%Y%m%d")))
+    try:
+        build.build()
+    except TrackerError as e:
+        print("warning: couldn't build the dashboard yet (%s)" % e, file=sys.stderr)
+
+
 def dispatch(args):
     c = args.cmd
-    if c == "add":
+    if c == "init":
+        run_init(args)
+    elif c == "migrate":
+        run_migrate(args)
+    elif c == "add":
         print(todo.add(args.title, args.project, args.repo, args.plan)["id"])
     elif c in ("start", "done", "drop"):
         it, changed = todo.set_status(args.id, c)

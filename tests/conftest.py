@@ -25,7 +25,7 @@ def sandbox(tmp_path):
 
     def run(*args):
         return subprocess.run([sys.executable, "-m", "personal_tracker", *args], env=env,
-                              capture_output=True, text=True, encoding="utf-8")
+                              capture_output=True, text=True, encoding="utf-8", stdin=subprocess.DEVNULL)   # never prompt
     run.dir = home
     run.env = env
     run.root = tmp_path / "repos"
