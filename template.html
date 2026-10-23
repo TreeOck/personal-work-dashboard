@@ -4,12 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Personal Work Tracker</title>
+<link rel="icon" href="data:,">
 <style>
 :root{
   --bg:#f6f5f1; --surface:#fff; --surface2:#f0eee8; --text:#1c1b18; --muted:#6b675e; --line:#e3e0d6;
   --accent:#2f5d50; --accent-soft:#dfece7;
   --feature:#2f5d50; --fix:#b4532a; --infra:#3d5a9e; --docs:#7a6a2f; --other:#6b675e;
   --heat0:#ebe8df; --heat1:#c5ddd3; --heat2:#8fbfae; --heat3:#4f9680; --heat4:#2f5d50;
+  --paused:#97690f; --paused-soft:#f6edd8; --on-accent:#fff;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -17,6 +19,7 @@
     --accent:#7fc4ad; --accent-soft:#22352f;
     --feature:#7fc4ad; --fix:#e59a74; --infra:#8fa8e6; --docs:#d1c177; --other:#9b9a93;
     --heat0:#262932; --heat1:#25413a; --heat2:#2f6355; --heat3:#4a9a82; --heat4:#7fc4ad;
+    --paused:#d8b25e; --paused-soft:#33301f; --on-accent:#10241e;
   }
 }
 :root[data-theme="dark"]{
@@ -24,6 +27,7 @@
   --accent:#7fc4ad; --accent-soft:#22352f;
   --feature:#7fc4ad; --fix:#e59a74; --infra:#8fa8e6; --docs:#d1c177; --other:#9b9a93;
   --heat0:#262932; --heat1:#25413a; --heat2:#2f6355; --heat3:#4a9a82; --heat4:#7fc4ad;
+  --paused:#d8b25e; --paused-soft:#33301f; --on-accent:#10241e;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
@@ -31,7 +35,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 -apple-system
 header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
 h1{font-size:22px;margin:0;font-weight:650;letter-spacing:-.01em}
 .sub{color:var(--muted);font-size:13px}
-button,input{font:inherit;color:inherit}
+button,input,select,textarea{font:inherit;color:inherit}
 .btn{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
 .btn:hover{background:var(--surface2)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px}
@@ -115,7 +119,7 @@ summary{cursor:pointer;color:var(--accent);font-size:13px}
 .drawer .facts{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px}
 .drawer .facts dt{color:var(--muted)}.drawer .facts dd{margin:0;font-variant-numeric:tabular-nums}
 .pill{display:inline-block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-radius:999px;padding:1px 9px;border:1px solid var(--line);color:var(--muted)}
-.pill.in_progress{border-color:var(--accent);color:var(--accent)}.pill.done{color:var(--feature)}
+.pill.in_progress{border-color:var(--accent);color:var(--accent)}.pill.done{color:var(--feature)}.pill.paused{border-color:var(--paused);color:var(--paused);background:var(--paused-soft)}
 .tl{list-style:none;margin:0;padding:0 0 0 14px;border-left:2px solid var(--line)}
 .tl li{position:relative;margin:0 0 10px;font-size:13.5px}
 .tl li::before{content:"";position:absolute;left:-20px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--surface);border:2px solid var(--accent)}
@@ -129,6 +133,10 @@ summary{cursor:pointer;color:var(--accent);font-size:13px}
 .col>h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 8px;display:flex;justify-content:space-between}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px}
 .card.in_progress{border-left:3px solid var(--accent)}
+.card.paused{border-left:3px solid var(--paused);background:var(--paused-soft)}
+.card.paused:hover{background:var(--paused-soft);border-color:var(--paused)}
+.card .why{margin-top:6px;font-size:13px;color:var(--text)}
+.card .foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
 .card .id{font:11px ui-monospace,Menlo,monospace;color:var(--muted)}
 .card .notes{margin:6px 0 0;padding-left:16px;font-size:13px;color:var(--muted)}
 .card code{font:12px ui-monospace,Menlo,monospace;word-break:break-all}
@@ -169,13 +177,50 @@ summary{cursor:pointer;color:var(--accent);font-size:13px}
 .modal .msg{margin-right:auto;font-size:13px;color:var(--muted)}
 kbd{font:11px ui-monospace,Menlo,monospace;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--muted)}
 .keys{color:var(--muted);font-size:12px;margin-top:28px;text-align:center}
+.mode{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-left:10px;vertical-align:3px;font-weight:400}
+.mode::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--line)}
+.mode.live::before{background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.mode code{font:11.5px ui-monospace,Menlo,monospace}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.btn.primary:hover{background:var(--accent);filter:brightness(1.08)}
+.btn.sm{padding:3px 10px;font-size:13px}
+.btn.warn{color:var(--paused);border-color:var(--paused)}
+.btn.danger{color:var(--fix)}
+.btn.danger.armed{background:var(--fix);border-color:var(--fix);color:#fff}
+.btn:disabled{opacity:.5;cursor:progress}
+.btn:focus-visible,.quick :focus-visible,.compose :focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.quick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 8px 8px 14px;margin-bottom:18px}
+.quick[hidden]{display:none}
+.quick:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.quick .t{flex:1 1 260px;min-width:0;border:0;background:none;padding:6px 0;font-size:15px;outline:none}
+.quick .t:focus-visible{outline:none}
+.quick select,.quick .r{background:var(--surface2);border:1px solid transparent;border-radius:8px;padding:5px 8px;font-size:13px;max-width:200px}
+.quick .r{width:150px}
+.quick .err,.acts .err,.compose .err{flex-basis:100%;color:var(--fix);font-size:13px}
+.err:empty{display:none}
+.acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
+.why-form{display:flex;gap:8px;margin:4px 0 6px;flex-wrap:wrap}
+.why-form[hidden]{display:none}
+.why-form input:focus-visible,.compose textarea:focus-visible{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
+.why-form input{flex:1;min-width:180px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.compose{display:grid;gap:6px;margin-bottom:12px}
+.compose textarea{width:100%;min-height:62px;resize:vertical;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px}
+.compose .bar2{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted)}
+.paused-log{margin-top:22px}
+.paused-log>h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--paused);margin:0 0 8px;display:flex;justify-content:space-between}
+.paused-log .board .card{margin-bottom:0}
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,12px);background:var(--text);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:14px;z-index:30;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+@keyframes touched{from{box-shadow:0 0 0 3px var(--accent)}to{box-shadow:0 0 0 3px transparent}}
+.touched{animation:touched 1.6s ease-out}
+@media (prefers-reduced-motion:reduce){.toast,.drawer,.scrim{transition:none}.touched{animation:none;outline:2px solid var(--accent)}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <div>
-      <h1>Personal Work Tracker</h1>
+      <h1>Personal Work Tracker<span class="mode" id="mode"></span></h1>
       <div class="sub" id="gen"></div>
     </div>
     <div class="actions">
@@ -196,9 +241,18 @@ kbd{font:11px ui-monospace,Menlo,monospace;border:1px solid var(--line);border-b
     <input class="search" id="q" type="search" placeholder="Search tasks, repos, commits…  ( / )">
   </div>
   <div class="chips" id="chips"></div>
+  <form class="quick" id="quick" hidden autocomplete="off">
+    <input class="t" id="qa-title" maxlength="300" placeholder="Add a task… (press n)" aria-label="New task title" required>
+    <select id="qa-project" aria-label="Project"></select>
+    <input class="r" id="qa-repo" list="qa-repos" placeholder="Repo (optional)" aria-label="Repo">
+    <datalist id="qa-repos"></datalist>
+    <button class="btn primary" type="submit">Add task</button>
+    <div class="err" id="qa-err" role="alert"></div>
+  </form>
   <div id="out"></div>
-  <div class="keys"><kbd>c</kbd> <kbd>d</kbd> <kbd>w</kbd> <kbd>m</kbd> views · <kbd>←</kbd> <kbd>→</kbd> period · <kbd>/</kbd> search · <kbd>Esc</kbd> close / clear</div>
+  <div class="keys"><kbd>c</kbd> <kbd>d</kbd> <kbd>w</kbd> <kbd>m</kbd> views · <kbd>←</kbd> <kbd>→</kbd> period · <kbd>/</kbd> search · <span id="key-n"><kbd>n</kbd> new task · </span><kbd>Esc</kbd> close / clear</div>
   <div class="pop" id="pop" hidden></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div class="scrim" id="scrim"></div>
   <aside class="drawer" id="drawer" aria-hidden="true" role="dialog" aria-labelledby="dr-title">
     <header><h2 id="dr-title"></h2><button class="btn" id="dr-close" aria-label="Close details">✕</button></header>
@@ -214,6 +268,8 @@ kbd{font:11px ui-monospace,Menlo,monospace;border:1px solid var(--line);border-b
 </div>
 <script>
 const DATA = /*__DATA__*/null;
+const TOKEN = document.querySelector('meta[name="tracker-token"]')?.content || "";
+const EDIT = !!TOKEN && location.protocol === "http:";
 const TZ = "Asia/Kolkata";
 const fmtDay = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-GB", {weekday:"short", day:"numeric", month:"short", year:"numeric", timeZone:"UTC"});
 const fmtDayShort = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-GB", {weekday:"short", day:"numeric", month:"short", timeZone:"UTC"});
@@ -383,14 +439,22 @@ const todoVisible = () => todo.filter(i => (!i.project || state.projects.has(i.p
   (!state.q || (i.id + " " + i.title + " " + (i.project||"") + " " + (i.repo||"") + " " + i.notes.map(n => n.text).join(" ")).toLowerCase().includes(state.q)));
 const boardCols = () => { const vis = todoVisible(), weekAgo = Date.now() - 7 * 864e5;
   return [["In progress", vis.filter(i => i.status === "in_progress")], ["To do", vis.filter(i => i.status === "todo")],
+    ["Paused", vis.filter(i => i.status === "paused").sort((a,b) => b.paused_at.localeCompare(a.paused_at))],
     state.q ? ["Done · matching", vis.filter(i => i.status === "done")]                     // searching looks through everything finished
       : ["Done · last 7 days", vis.filter(i => i.status === "done" && new Date(i.closed_at) >= weekAgo)]]; };
 const fmtStamp = iso => new Date(iso).toLocaleString("en-GB", {timeZone: TZ, weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
 const where = i => [i.project, i.repo].filter(Boolean).join(" / ") || "no project";
 function renderCurrent() {
   const card = i => { const start = i.started_at || i.created_at;
-    const link = i.status === "todo" || !i.project ? "" : `<div class="meta"><span>${pl(i.cs.length, "commit")}${i.status === "in_progress" ? " so far" : ""}</span>${i.cs.length ? `<span><span class="add">+${sum(i.cs,c=>c.ins)}</span> <span class="del">-${sum(i.cs,c=>c.del)}</span></span>` : ""}<span>${dur(start, new Date().toISOString())} in progress</span></div>`;
+    const link = i.status === "todo" || !i.project ? "" : `<div class="meta"><span>${pl(i.cs.length, "commit")}${i.status === "in_progress" ? " so far" : ""}</span>${i.cs.length ? `<span><span class="add">+${sum(i.cs,c=>c.ins)}</span> <span class="del">-${sum(i.cs,c=>c.del)}</span></span>` : ""}<span>${i.status === "paused" ? "paused " + ago(i.paused_at) : dur(start, new Date().toISOString()) + " in progress"}</span></div>`;
     const last = i.notes[i.notes.length - 1];
+    if (i.status === "paused") { const why = pauseReason(i);   // the shelf shows why it stopped, not the last note
+      return `<div class="card paused" data-todo="${esc(i.id)}" tabindex="0">
+      <div class="id">${i.id} · ${esc(where(i))}</div>
+      <div class="task-title">${esc(i.title)}</div>
+      ${why ? `<div class="why">⏸ ${esc(why)}</div>` : ""}
+      <div class="foot">${link || `<div class="meta"><span>paused ${ago(i.paused_at)}</span></div>`}${EDIT ? `<button class="btn sm" data-act="start" data-id="${esc(i.id)}">Resume</button>` : ""}</div>
+    </div>`; }
     return `<div class="card ${i.status}" data-todo="${esc(i.id)}" tabindex="0">
       <div class="id">${i.id} · ${esc(where(i))}</div>
       <div class="task-title">${esc(i.title)}</div>
@@ -399,8 +463,8 @@ function renderCurrent() {
       ${last ? `<ul class="notes"><li>${esc(last.text)} <span class="id">${ago(last.at)}</span></li></ul>` : ""}
       ${i.notes.length > 1 || i.plan || i.cs.length ? `<div class="more">${[i.notes.length > 1 ? `+${i.notes.length - 1} more note${i.notes.length > 2 ? "s" : ""}` : "", i.plan ? "plan" : "", i.cs.length ? pl(i.cs.length, "commit") : ""].filter(Boolean).join(" · ")} — open details</div>` : ""}
     </div>`; };
-  const [[h1, prog], [h2, todoItems], [h3, done]] = boardCols();
-  const hint = `<div class="hint">Nothing here. Add one with <code>tracker add "Title" -p myproject -r my-repo</code></div>`;
+  const [[h1, prog], [h2, todoItems], [hp, paused], [h3, done]] = boardCols();
+  const hint = EDIT ? `<div class="hint">Nothing here. Type a task in the box above.</div>` : `<div class="hint">Nothing here. Add one with <code>tracker add "Title" -p myproject -r my-repo</code></div>`;
   const board = `<div class="board">${[[h1, prog], [h2, todoItems]].map(([h, items]) => `<section class="col"><h2><span>${h}</span><span>${items.length}</span></h2>${items.map(card).join("") || hint}</section>`).join("")}</div>`;
   // done: one line per task, grouped by the IST day it closed; today and yesterday open
   const yday = addDays(TODAY, -1), byDay = groupBy(done, i => istDate(i.closed_at));
@@ -409,7 +473,8 @@ function renderCurrent() {
     const items = byDay[d].sort((a,b) => b.closed_at.localeCompare(a.closed_at));
     const label = d === TODAY ? "Today" : d === yday ? "Yesterday" : fmtDayShort(d);
     return `<details class="dgroup" data-day-group="${d}" ${d >= yday || state.q ? "open" : ""}><summary><span>${label}</span><span class="n">${items.length} done</span></summary>${items.map(row).join("")}</details>`; }).join("");
-  return board + `<section class="done-log"><h2><span>${h3}</span><span>${done.length}</span></h2>${groups || `<div class="hint">${state.q ? "No finished task matches." : "Nothing finished in the last 7 days."}</div>`}</section>`;
+  const shelf = paused.length ? `<section class="paused-log"><h2><span>${hp}</span><span>${paused.length}</span></h2><div class="board">${paused.map(card).join("")}</div></section>` : "";
+  return board + shelf + `<section class="done-log"><h2><span>${h3}</span><span>${done.length}</span></h2>${groups || `<div class="hint">${state.q ? "No finished task matches." : "Nothing finished in the last 7 days."}</div>`}</section>`;
 }
 
 // ---- detail drawer: everything about one to-do task or one summarised task
@@ -431,16 +496,18 @@ function closeDrawer() {
 }
 const drawerOpen = () => drawer.classList.contains("on");
 function todoDetail(i) {
-  const start = i.started_at || i.created_at, label = {in_progress: "in progress", todo: "to do", done: "done", dropped: "dropped"}[i.status];
+  const start = i.started_at || i.created_at, label = {in_progress: "in progress", todo: "to do", paused: "paused", done: "done", dropped: "dropped"}[i.status];
   const facts = [["Status", `<span class="pill ${i.status}">${label}</span>`], ["Id", i.id], ["Where", esc(where(i))], ["Added", fmtStamp(i.created_at)]];
   if (i.status !== "todo") facts.push(["Started", fmtStamp(start) + (i.started_at ? "" : " (added time)")]);
   if (i.closed_at) facts.push([i.status === "dropped" ? "Dropped" : "Finished", fmtStamp(i.closed_at)], ["Took", dur(start, i.closed_at)]);
   else if (i.status === "in_progress") facts.push(["Running", dur(start, new Date().toISOString())]);
+  else if (i.status === "paused") facts.push(["Paused", `${fmtStamp(i.paused_at)} (${ago(i.paused_at)})`]);
+  if ((i.pauses || []).length) facts.push(["Earlier pauses", String(i.pauses.length)]);
   if (i.cs.length) facts.push(["Commits", `${i.cs.length} · <span class="add">+${sum(i.cs,c=>c.ins)}</span> <span class="del">-${sum(i.cs,c=>c.del)}</span>`]);
-  let h = `<dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>`;
+  let h = (EDIT ? actionsHTML(i) : "") + `<dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>`;
   if (i.plan) h += `<h3>Plan</h3><code>${esc(i.plan)}</code>`;
-  h += `<h3>Notes · ${i.notes.length}</h3>` + (i.notes.length ? `<ol class="tl">${i.notes.slice().reverse().map(n => `<li><span class="when">${fmtStamp(n.at)}</span>${esc(n.text)}</li>`).join("")}</ol>` : `<div class="tag">No notes.</div>`);
-  if (i.project && i.status !== "todo") h += `<h3>Commits while open · ${i.cs.length}</h3>` + (i.cs.length ? `<div class="commits full">${commitRows(i.cs)}</div>` : `<div class="tag">No commits in ${esc(where(i))} between start and ${i.closed_at ? "finish" : "now"}.</div>`);
+  h += `<h3>Notes · ${i.notes.length}</h3>` + (EDIT ? `<form class="compose" data-id="${esc(i.id)}"><textarea id="note-text" maxlength="2000" placeholder="Add a note…" aria-label="New note"></textarea><div class="bar2"><span>⌘ Enter to add</span><button class="btn sm" type="submit">Add note</button></div><div class="err" role="alert"></div></form>` : "") + (i.notes.length ? `<ol class="tl">${i.notes.slice().reverse().map(n => `<li><span class="when">${fmtStamp(n.at)}</span>${esc(n.text)}</li>`).join("")}</ol>` : `<div class="tag">No notes.</div>`);
+  if (i.project && i.status !== "todo") h += `<h3>Commits while open · ${i.cs.length}</h3>` + (i.cs.length ? `<div class="commits full">${commitRows(i.cs)}</div>` : `<div class="tag">No commits in ${esc(where(i))} between start and ${i.closed_at ? "finish" : "now"}${(i.pauses || []).length || i.paused_at ? " (time spent paused doesn't count)" : ""}.</div>`);
   return h;
 }
 function taskDetail(t) {
@@ -460,13 +527,14 @@ function openItem(el) {
   else { const t = tasks.find(x => x.id === el.dataset.task); if (t) openDrawer(taskDetail(t), t.title, el); }
 }
 document.addEventListener("click", e => {
+  if (e.target.closest("[data-act], .acts, .compose, .why-form")) return;
   const el = e.target.closest("[data-todo],[data-task]");
   if (!el || e.target.closest("summary, details > :not(summary) a")) return;   // let the Commits toggle work
   if (e.target.closest(".task details")) return;
   openItem(el);
 });
 document.addEventListener("keydown", e => {
-  if (e.key !== "Enter") return; const el = e.target.closest && e.target.closest("[data-todo],[data-task]");
+  if (e.key !== "Enter" || (e.target.closest && e.target.closest("[data-act]"))) return; const el = e.target.closest && e.target.closest("[data-todo],[data-task]");
   if (el && el.tagName !== "BUTTON") { e.preventDefault(); openItem(el); }
 });
 document.getElementById("dr-close").addEventListener("click", closeDrawer);
@@ -477,6 +545,7 @@ function render() {
   document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.v === v));
   const o = document.getElementById("out"), per = document.getElementById("period");
   let cur, prev = null, vs = "";
+  document.getElementById("quick").hidden = !(EDIT && v === "current");
   if (v === "current") {
     o.innerHTML = renderCurrent();
     per.innerHTML = `<span>All time · since ${fmtShort(firstDay)}</span>`;
@@ -635,8 +704,77 @@ document.addEventListener("keydown", e => {
   else if (e.key === "ArrowLeft") step(-1);
   else if (e.key === "ArrowRight") step(1);
   else if (e.key === "/") { e.preventDefault(); q.focus(); }
+  else if (e.key === "n" && EDIT) { e.preventDefault(); if (state.view !== "current") setView("current"); document.getElementById("qa-title").focus(); }
 });
+// ---- editing: only when served by `tracker` (server.py writes a per-run token into the page)
+function actionsHTML(i) {
+  const b = (act, label, cls = "") => `<button class="btn sm ${cls}" data-act="${act}" data-id="${esc(i.id)}">${label}</button>`;
+  const set = {todo: [b("start", "Start", "primary"), b("drop", "Drop", "danger")],
+    in_progress: [b("done", "Mark done", "primary"), b("pause", "Pause…", "warn"), b("drop", "Drop", "danger")],
+    paused: [b("start", "Resume", "primary"), b("done", "Mark done"), b("drop", "Drop", "danger")],
+    done: [b("start", "Reopen")], dropped: [b("start", "Reopen")]}[i.status] || [];
+  return `<div class="acts">${set.join("")}<div class="err" role="alert"></div></div>` +
+    `<form class="why-form" data-id="${esc(i.id)}" hidden><input id="why-text" maxlength="2000" placeholder="Why is it paused? (optional)" aria-label="Pause reason"><button class="btn sm warn" type="submit">Pause</button></form>`;
+}
+const DONE_WORD = {start: "Started", done: "Marked done", drop: "Dropped", pause: "Paused", note: "Note added to"};
+async function send(body, errEl, buttons) {
+  buttons.forEach(x => x.disabled = true); errEl.textContent = "";
+  try {
+    const r = await fetch("/api/todo", {method: "POST", headers: {"Content-Type": "application/json", "X-Tracker-Token": TOKEN}, body: JSON.stringify(body)});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || "The tracker answered " + r.status);
+    const id = body.id || (j.out || "").trim();
+    const word = body.action === "start" && body.resume ? "Resumed" : DONE_WORD[body.action] || "Added";
+    try { sessionStorage.setItem("after", JSON.stringify({id, reopen: drawerOpen() && !!body.id, toast: `${word} ${id}`})); } catch (_) {}
+    location.reload();   // todo.py has already rebuilt the page
+  } catch (e) {
+    errEl.textContent = e instanceof TypeError ? "The tracker server isn't running. Run tracker in a terminal, then try again." : e.message;
+    buttons.forEach(x => x.disabled = false);
+  }
+}
+function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("on"); setTimeout(() => t.classList.remove("on"), 2600); }
+const pauseReason = i => { const n = i.notes.slice().reverse().find(n => n.text.startsWith("Paused: ")); return n && n.at >= i.paused_at ? n.text.slice(8) : ""; };
+if (EDIT) {
+  document.getElementById("key-n").hidden = false;
+  document.getElementById("mode").className = "mode live"; document.getElementById("mode").textContent = "editing";
+  const sel = document.getElementById("qa-project"), repo = document.getElementById("qa-repo");
+  sel.innerHTML = `<option value="">No project</option>` + projects.map(p => `<option>${esc(p)}</option>`).join("");
+  const fillRepos = () => { document.getElementById("qa-repos").innerHTML = uniq(commits.filter(c => c.project === sel.value).map(c => c.repo)).sort().map(r => `<option value="${esc(r)}">`).join(""); };
+  sel.addEventListener("change", () => { repo.value = ""; fillRepos(); try { localStorage.setItem("qa-project", sel.value); } catch (_) {} });
+  try { const p = localStorage.getItem("qa-project"); if (p && projects.includes(p)) sel.value = p; } catch (_) {}
+  fillRepos();
+  document.getElementById("quick").addEventListener("submit", e => { e.preventDefault();
+    const title = document.getElementById("qa-title").value.trim(); if (!title) return;
+    send({action: "add", title, project: sel.value, repo: repo.value.trim()}, document.getElementById("qa-err"), [...e.target.querySelectorAll("button")]); });
+  document.addEventListener("click", e => {
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    const errEl = b.closest(".acts")?.querySelector(".err") || document.getElementById("qa-err"), act = b.dataset.act, id = b.dataset.id;
+    if (act === "pause") { const f = document.querySelector(".why-form"); f.hidden = false; f.querySelector("input").focus(); return; }
+    if (act === "drop" && !b.classList.contains("armed")) {   // second click confirms
+      b.classList.add("armed"); b.textContent = "Click again to drop"; setTimeout(() => { b.classList.remove("armed"); b.textContent = "Drop"; }, 3000); return; }
+    const resume = act === "start" && todo.find(x => x.id === id)?.status === "paused";
+    send({action: act, id, resume}, errEl, [...document.querySelectorAll("[data-act]")]);
+  });
+  document.addEventListener("submit", e => {
+    const f = e.target;
+    if (f.classList.contains("why-form")) { e.preventDefault();
+      send({action: "pause", id: f.dataset.id, text: f.querySelector("input").value}, document.querySelector(".acts .err"), [...f.querySelectorAll("button"), ...document.querySelectorAll("[data-act]")]); }
+    if (f.classList.contains("compose")) { e.preventDefault(); const text = f.querySelector("textarea").value.trim();
+      if (text) send({action: "note", id: f.dataset.id, text}, f.querySelector(".err"), [...f.querySelectorAll("button")]); }
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Enter" && e.metaKey && e.target.id === "note-text") { e.preventDefault(); e.target.form.requestSubmit(); } });
+} else {
+  document.getElementById("key-n").hidden = true;
+  document.getElementById("mode").innerHTML = `read-only · run <code>tracker</code> to edit`;
+}
 render();
+try {   // after an edit: say what happened, show the card it touched, reopen its details
+  const a = JSON.parse(sessionStorage.getItem("after") || "null"); sessionStorage.removeItem("after");
+  if (a) { toast(a.toast);
+    const el = document.querySelector(`[data-todo="${CSS.escape(a.id)}"]`);
+    if (el) { el.scrollIntoView({block: "center"}); el.classList.add("touched"); }
+    if (a.reopen) { const i = todo.find(x => x.id === a.id); if (i) openDrawer(todoDetail(i), i.title, el); } }
+} catch (_) {}
 </script>
 </body>
 </html>

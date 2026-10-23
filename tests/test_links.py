@@ -63,3 +63,14 @@ def test_window_edges_are_inclusive():
 
 def test_dropped_tasks_still_show_their_commits():
     assert shas(item(status="dropped")) == ["a2", "a3"]
+
+
+def test_commits_during_a_finished_pause_are_not_linked():
+    # paused 09:30-10:15 on the 6th: a2 (10:00) falls inside the pause, a3 (10:30) after it
+    it = item(pauses=[{"from": "2026-10-06T09:30:00+05:30", "to": "2026-10-06T10:15:00+05:30"}])
+    assert shas(it) == ["a3"]
+
+
+def test_commits_after_an_open_pause_are_not_linked():
+    it = item(status="paused", closed_at=None, paused_at="2026-10-06T10:15:00+05:30")
+    assert shas(it) == ["a2"]

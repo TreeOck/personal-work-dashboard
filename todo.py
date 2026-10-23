@@ -2,7 +2,8 @@
 """Current-tasks list for the personal tracker (todo.json).
 
   add "Title" [-p project] [-r repo] [--plan path]   -> prints new id
-  start|done|drop ID
+  start|done|drop ID                                 (start on a paused task resumes it)
+  pause ID ["reason"]                                -> the reason is kept as a note
   note ID "text"
   todo [--all]                                       -> list open (or all) tasks
 
@@ -20,7 +21,8 @@ from datetime import datetime
 HERE = os.path.dirname(os.path.abspath(__file__))
 PATH = os.path.join(HERE, "todo.json")
 from config import ROOT
-STATUSES = ("todo", "in_progress", "done", "dropped")
+STATUSES = ("todo", "in_progress", "paused", "done", "dropped")
+OPEN = ("todo", "in_progress", "paused")
 
 
 def now():
@@ -72,13 +74,14 @@ def main():
     a.add_argument("-r", "--repo"); a.add_argument("--plan")
     for c in ("start", "done", "drop"):
         sub.add_parser(c).add_argument("id")
+    p = sub.add_parser("pause"); p.add_argument("id"); p.add_argument("reason", nargs="?", default="")
     n = sub.add_parser("note"); n.add_argument("id"); n.add_argument("text")
     sub.add_parser("todo").add_argument("--all", action="store_true")
     args = ap.parse_args()
 
     if args.cmd == "todo":
         doc = json.load(open(PATH)) if os.path.exists(PATH) else {"items": []}
-        rows = [i for i in doc["items"] if args.all or i["status"] in ("todo", "in_progress")]
+        rows = [i for i in doc["items"] if args.all or i["status"] in OPEN]
         print("\n".join(fmt(i) for i in rows) or "no open tasks")
         return
 
@@ -97,8 +100,21 @@ def main():
             print(it["id"])
         elif args.cmd == "note":
             it = find(doc, args.id)
+            if not args.text.strip():
+                sys.exit("note can't be empty")
             it["notes"].append({"at": now(), "text": args.text.strip()})
             it["updated_at"] = now()
+            print(fmt(it))
+        elif args.cmd == "pause":
+            it = find(doc, args.id)
+            if it["status"] == "paused":
+                print("already paused: %s" % fmt(it))
+                return
+            if it["status"] != "in_progress":
+                sys.exit("can only pause a task that's in progress (%s is %s)" % (it["id"], it["status"]))
+            it["status"], it["paused_at"], it["updated_at"] = "paused", now(), now()
+            if args.reason.strip():
+                it["notes"].append({"at": now(), "text": "Paused: " + args.reason.strip()})
             print(fmt(it))
         else:
             it = find(doc, args.id)
@@ -108,6 +124,9 @@ def main():
                 return
             if new == "done":
                 scan()  # pick up commits made since the last refresh so they get linked
+            if it.get("paused_at"):  # leaving a pause: keep the gap so its commits aren't linked
+                it.setdefault("pauses", []).append({"from": it["paused_at"], "to": now()})
+                it["paused_at"] = None
             it["status"], it["updated_at"] = new, now()
             it["closed_at"] = now() if new in ("done", "dropped") else None
             if new == "in_progress" and not it.get("started_at"):
