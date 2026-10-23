@@ -109,6 +109,20 @@ def test_init_with_an_unusable_stdin_asks_for_flags_instead_of_crashing(home, mo
     assert not (home / "config.json").exists()
 
 
+def test_init_with_root_and_email_but_an_unusable_stdin_uses_defaults_for_the_optional_answers(home, monkeypatch):
+    # same Windows NUL situation: the optional prompts (timezone, summariser) must fall back to defaults, not fail
+    from personal_tracker import cli
+
+    def eof(prompt=""):
+        raise EOFError
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True, raising=False)
+    monkeypatch.setattr("builtins.input", eof)
+    assert cli.main(["init", "--root", "~/code", "--email", "a@b.c"]) == 0
+    cfg = config.load()
+    assert cfg.author_emails == ["a@b.c"] and cfg.summariser == setup.default_summariser()
+    assert cli.main(["init", "--root", "~/code", "--email", "a@b.c"]) == 1       # second time: refuses, and says why
+
+
 # ---- migrate
 
 def test_migrate_copies_verifies_and_renames(home, tmp_path):

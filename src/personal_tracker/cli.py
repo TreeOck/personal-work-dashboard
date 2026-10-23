@@ -78,26 +78,33 @@ def refresh(quiet=False):
             print("=== done")
 
 
+def _ask(prompt):
+    """input(), or None when there is nothing to read (Windows reports isatty() True for NUL, which is what scripts get)."""
+    try:
+        return input(prompt)
+    except EOFError:
+        return None
+
+
 def run_init(args):
     root, emails, tz = args.root, args.email or [], args.timezone
     summariser = [] if args.no_summariser else split_or_none(args.summariser)
-    if sys.stdin.isatty():   # ask for whatever wasn't passed
-        try:
-            root = root or input("Folder that contains your git repos (e.g. ~/code): ")
-            emails = emails or input("Email(s) you commit as, comma-separated: ").split(",")
-            if tz is None:
-                default = setup.detect_timezone()
-                tz = input("Timezone for day boundaries [%s] (blank = this computer's zone): " % (default or "this computer's zone")).strip() or default
-            if summariser is None:
-                default = setup.default_summariser()
-                shown = " ".join(default) if default else "none"
-                ans = input("Command that writes summaries (prompt on stdin, JSON out), or 'none' [%s]: " % shown).strip()
-                summariser = [] if ans.lower() == "none" else setup.split_command(ans) if ans else default
-        except EOFError:     # Windows reports isatty() True for NUL, which is what scripts and agents get
-            raise TrackerError("--root and --email are required when not running interactively") from None
-    elif not root or not emails:
+    if sys.stdin.isatty():   # ask for whatever wasn't passed; an unanswerable question takes its default
+        root = root or _ask("Folder that contains your git repos (e.g. ~/code): ")
+        if not emails:
+            emails = (_ask("Email(s) you commit as, comma-separated: ") or "").split(",")
+        if tz is None:
+            default = setup.detect_timezone()
+            ans = _ask("Timezone for day boundaries [%s] (blank = this computer's zone): " % (default or "this computer's zone"))
+            tz = default if ans is None else ans.strip() or default
+        if summariser is None:
+            default = setup.default_summariser()
+            ans = _ask("Command that writes summaries (prompt on stdin, JSON out), or 'none' [%s]: " % (" ".join(default) if default else "none"))
+            ans = (ans or "").strip()
+            summariser = [] if ans.lower() == "none" else setup.split_command(ans) if ans else default
+    if not root or not emails:
         raise TrackerError("--root and --email are required when not running interactively")
-    elif summariser is None:
+    if summariser is None:
         summariser = setup.default_summariser()
     path = setup.init(root, emails, tz, summariser or None, args.force)
     print("Wrote %s\nNext: tracker scan --days 30   then   tracker" % path)
