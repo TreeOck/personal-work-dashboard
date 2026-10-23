@@ -91,3 +91,143 @@ def test_an_idle_connection_does_not_block_other_requests(live):
         assert json.load(urllib.request.urlopen(base + "/api/ping", timeout=2))["app"] == "tracker"
     finally:
         idle.close()
+
+
+# ---- identity, version, detaching (Task 4)
+
+import platform
+import textwrap
+
+from personal_tracker import __version__, server
+
+
+def get(url):
+    with urllib.request.urlopen(url, timeout=5) as r:
+        return json.load(r)
+
+
+def test_version_endpoint_needs_no_token(live):
+    base, _, _ = live
+    assert get(base + "/api/version") == {"version": __version__, "environment": "local", "python": platform.python_version()}
+
+
+def test_ping_reports_home_and_version(live):
+    base, _, sb = live
+    assert get(base + "/api/ping") == {"app": "tracker", "home": str(sb.dir), "version": __version__}
+
+
+FAKE = textwrap.dedent('''
+    import http.server, json, sys
+    HOME, VERSION = sys.argv[1], sys.argv[2]
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = json.dumps({"app": "tracker", "home": HOME, "version": VERSION}).encode()
+            self.send_response(200); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
+        def log_message(self, *a): pass
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    print(srv.server_address[1], flush=True)
+    srv.serve_forever()
+''')
+
+
+@pytest.fixture
+def fake_server(tmp_path):
+    """Start a stand-in tracker server answering /api/ping with the given home and version."""
+    procs = []
+
+    def start(home, version):
+        script = tmp_path / "fake_tracker.py"
+        script.write_text(FAKE, encoding="utf-8")
+        p = subprocess.Popen([sys.executable, str(script), str(home), version], stdout=subprocess.PIPE, text=True)
+        procs.append(p)
+        return p, int(p.stdout.readline())
+    yield start
+    for p in procs:
+        if p.poll() is None:
+            p.kill()
+        p.wait()
+
+
+def ensure_in(sandbox):
+    """Run server.ensure() as a separate process in the sandbox; returns (port, pid of the server now registered)."""
+    r = subprocess.run([sys.executable, "-c", "from personal_tracker import server; print(server.ensure())"],
+                       env=sandbox.env, capture_output=True, text=True, timeout=30)
+    assert r.returncode == 0, r.stderr
+    return int(r.stdout.strip()), json.loads((sandbox.dir / "server.json").read_text())["pid"]
+
+
+def register(sandbox, pid, port):
+    (sandbox.dir / "server.json").write_text(json.dumps({"pid": pid, "port": port}))
+
+
+def test_version_mismatch_replaces_server(sandbox, fake_server):
+    old, old_port = fake_server(sandbox.dir, "0.0.1")
+    register(sandbox, old.pid, old_port)
+    new_port = new_pid = None
+    try:
+        new_port, new_pid = ensure_in(sandbox)
+        assert new_port != old_port and new_pid != old.pid
+        assert old.wait(timeout=10) is not None                          # the old-version server was stopped
+        assert get("http://127.0.0.1:%d/api/ping" % new_port)["version"] == __version__
+    finally:
+        if new_pid:
+            server.terminate(new_pid)
+
+
+def test_server_for_another_data_folder_is_neither_reused_nor_stopped(sandbox, fake_server, tmp_path):
+    other, other_port = fake_server(tmp_path / "elsewhere", __version__)
+    register(sandbox, other.pid, other_port)
+    new_pid = None
+    try:
+        new_port, new_pid = ensure_in(sandbox)
+        assert new_port != other_port
+        assert other.poll() is None                                      # not ours to stop
+    finally:
+        if new_pid:
+            server.terminate(new_pid)
+
+
+def test_stale_server_json_is_ignored(sandbox):
+    import socket
+    s = socket.socket(); s.bind(("127.0.0.1", 0)); closed_port = s.getsockname()[1]; s.close()
+    register(sandbox, 2 ** 22 + 1, closed_port)                          # a pid and port nothing owns
+    new_pid = None
+    try:
+        new_port, new_pid = ensure_in(sandbox)
+        assert get("http://127.0.0.1:%d/api/ping" % new_port)["home"] == str(sandbox.dir)
+    finally:
+        if new_pid:
+            server.terminate(new_pid)
+
+
+def test_detach_options_per_platform():
+    assert server.detach_kwargs("darwin") == {"start_new_session": True}
+    assert server.detach_kwargs("linux") == {"start_new_session": True}
+    DETACHED_PROCESS, CREATE_NEW_PROCESS_GROUP, CREATE_NO_WINDOW = 0x8, 0x200, 0x08000000
+    assert server.detach_kwargs("win32") == {"creationflags": DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW}
+
+
+def test_windows_background_python_prefers_pythonw(tmp_path):
+    (tmp_path / "python.exe").write_text("")
+    exe = str(tmp_path / "python.exe")
+    assert server.background_python(exe, "win32") == exe                 # no pythonw beside it: keep python.exe
+    (tmp_path / "pythonw.exe").write_text("")
+    assert server.background_python(exe, "win32") == str(tmp_path / "pythonw.exe")
+    assert server.background_python(exe, "darwin") == exe
+
+
+def test_taskkill_command():
+    assert server.taskkill_argv(1234) == ["taskkill", "/PID", "1234", "/F"]
+
+
+def test_open_dashboard_uses_the_browser_module(monkeypatch, tmp_path, capsys):
+    opened = []
+    monkeypatch.setenv("TRACKER_HOME", str(tmp_path))
+    monkeypatch.setattr(server.webbrowser, "open", lambda url: opened.append(url))
+    monkeypatch.setattr(server, "ensure", lambda: 47615)
+    server.open_dashboard()
+    assert opened == ["http://127.0.0.1:47615/"]
+    monkeypatch.setattr(server, "ensure", lambda: None)                  # server couldn't start: read-only file
+    server.open_dashboard()
+    assert opened[1] == (tmp_path / "dashboard.html").as_uri()
+    assert "read-only" in capsys.readouterr().err

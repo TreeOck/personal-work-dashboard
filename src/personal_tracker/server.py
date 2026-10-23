@@ -10,6 +10,7 @@ The server exits after 12 h without a request; `tracker` starts a new one.
 """
 import json
 import os
+import platform
 import re
 import secrets
 import signal
@@ -17,9 +18,10 @@ import subprocess
 import sys
 import time
 import urllib.request
+import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import files, paths
+from . import __version__, files, paths
 from .errors import TrackerError
 
 PORT = 47615            # fixed so a bookmark keeps working; any free port if it's taken
@@ -91,7 +93,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(403, {"error": "bad host"})
         path = self.path.split("?")[0]
         if path == "/api/ping":
-            return self.reply(200, {"app": "tracker", "dir": str(paths.home())})
+            return self.reply(200, {"app": "tracker", "home": str(paths.home()), "version": __version__})
+        if path == "/api/version":
+            return self.reply(200, {"version": __version__, "environment": "local", "python": platform.python_version()})
         if path in ("/", "/dashboard.html"):
             try:
                 html = paths.file("dashboard.html").read_text(encoding="utf-8")
@@ -150,24 +154,86 @@ def serve():
             pass
 
 
-def running_port():
-    """Port of a live server for *this* folder, else None."""
+def detach_kwargs(plat=sys.platform):
+    """Popen options that let the server outlive the terminal that started it."""
+    if plat == "win32":
+        DETACHED_PROCESS, CREATE_NEW_PROCESS_GROUP, CREATE_NO_WINDOW = 0x8, 0x200, 0x08000000
+        return {"creationflags": DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW}
+    return {"start_new_session": True}
+
+
+def background_python(exe=sys.executable, plat=sys.platform):
+    """On Windows prefer pythonw.exe (no console window) when it sits beside python.exe."""
+    if plat == "win32":
+        w = os.path.join(os.path.dirname(exe), "pythonw.exe")
+        if os.path.exists(w):
+            return w
+    return exe
+
+
+def taskkill_argv(pid):
+    return ["taskkill", "/PID", str(pid), "/F"]
+
+
+def terminate(pid):
+    """Stop a server process. Windows can't run our cleanup handler, so server.json may be left behind;
+    readers treat a server.json whose port doesn't answer as stale."""
     try:
-        port = files.read_json(paths.file("server.json"), {})["port"]
+        if sys.platform == "win32":
+            subprocess.run(taskkill_argv(pid), capture_output=True)
+        else:
+            os.kill(pid, signal.SIGTERM)
+    except (OSError, ProcessLookupError):
+        pass
+
+
+def _ping(port):
+    try:
         with urllib.request.urlopen("http://127.0.0.1:%d/api/ping" % port, timeout=1) as r:
-            return port if json.load(r).get("dir") == str(paths.home()) else None
-    except (OSError, ValueError, KeyError, TrackerError):
+            info = json.load(r)
+        return info if info.get("app") == "tracker" else None
+    except (OSError, ValueError):
         return None
+
+
+def _registered():
+    """(pid, port) from server.json, or (None, None) when missing or unreadable."""
+    try:
+        state = files.read_json(paths.file("server.json"), {})
+        return state["pid"], state["port"]
+    except (KeyError, TypeError, TrackerError):
+        return None, None
+
+
+def running_port():
+    """Port of a live server for *this* data folder and this version, else None."""
+    _, port = _registered()
+    info = _ping(port) if port else None
+    return port if info and info.get("home") == str(paths.home()) and info.get("version") == __version__ else None
+
+
+def _stop_old_version():
+    """Stop a server of ours (same data folder) that was started by a different tracker version.
+    Only a server that answers as ours is stopped: a stale server.json must never lead to killing an unrelated pid."""
+    pid, port = _registered()
+    info = _ping(port) if port else None
+    if info and info.get("home") == str(paths.home()) and info.get("version") != __version__ and pid:
+        terminate(pid)
+        for _ in range(30):
+            if _ping(port) is None:
+                break
+            time.sleep(0.1)
 
 
 def ensure():
     port = running_port()
     if port:
         return port
+    _stop_old_version()
     paths.home().mkdir(parents=True, exist_ok=True)
     with open(paths.file("server.log"), "a", encoding="utf-8") as log:
-        subprocess.Popen([sys.executable, "-m", "personal_tracker", "serve"],
-                         stdout=log, stderr=log, stdin=subprocess.DEVNULL, start_new_session=True)
+        subprocess.Popen([background_python(), "-m", "personal_tracker", "serve"],
+                         stdout=log, stderr=log, stdin=subprocess.DEVNULL, **detach_kwargs())
     for _ in range(50):
         time.sleep(0.1)
         port = running_port()
@@ -179,7 +245,7 @@ def ensure():
 def open_dashboard():
     port = ensure()
     if port:
-        subprocess.run(["open", "http://127.0.0.1:%d/" % port])
+        webbrowser.open("http://127.0.0.1:%d/" % port)
     else:
         print("warning: couldn't start the edit server (see server.log); opening read-only", file=sys.stderr)
-        subprocess.run(["open", str(paths.file("dashboard.html"))])
+        webbrowser.open(paths.file("dashboard.html").as_uri())
