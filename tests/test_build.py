@@ -18,7 +18,7 @@ def site(tmp_path):
     (tmp_path / "todo.json").write_text(json.dumps({"items": [{"id": "t-0001", "title": "x", "project": "beta", "repo": None,
         "status": "todo", "created_at": "2026-10-12T10:00:00+05:30", "updated_at": "2026-10-12T10:00:00+05:30",
         "started_at": None, "closed_at": None, "plan": None, "notes": []}]}))
-    env = dict(os.environ, TRACKER_HOME=str(tmp_path), PYTHONIOENCODING="utf-8")
+    env = dict(os.environ, TRACKER_HOME=str(tmp_path))
     run = lambda: subprocess.run([sys.executable, "-m", "personal_tracker", "build"], env=env, capture_output=True, text=True, encoding="utf-8")
     run.dir = tmp_path
     return run

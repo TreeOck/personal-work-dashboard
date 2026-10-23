@@ -7,6 +7,8 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from personal_tracker import summarise
+from personal_tracker.errors import TrackerError
 from personal_tracker.summarise import (dedupe_ids, local, resolve_command, unique_id, validate_backfill,
                                         validate_new_tasks, zone)
 
@@ -144,3 +146,73 @@ def test_configured_summariser_gets_the_prompt_on_stdin_and_its_json_is_validate
     assert r.returncode == 0, r.stderr
     (t,) = json.loads((sandbox.dir / "tasks.json").read_text(encoding="utf-8"))["tasks"]
     assert t["title"] == "हिंदी → ✅" and t["commits"] == ["aaaaaaa"]
+
+
+def test_a_summariser_that_hangs_is_a_clean_error(monkeypatch, tmp_path):
+    script = tmp_path / "hang.py"
+    script.write_text("import time\ntime.sleep(30)\n", encoding="utf-8")
+    monkeypatch.setattr(summarise, "SUMMARISER_TIMEOUT", 0.5)
+    with pytest.raises(TrackerError, match="timed out"):
+        summarise.ask("prompt", [sys.executable, str(script)])
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="a bad #! line is a POSIX thing")
+def test_a_summariser_that_cannot_be_executed_is_a_clean_error(tmp_path, monkeypatch):
+    bad = tmp_path / "badsum"
+    bad.write_text("#!/nonexistent/interpreter\n", encoding="utf-8")
+    bad.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ.get("PATH", ""))
+    with pytest.raises(TrackerError, match="badsum"):
+        summarise.ask("prompt", ["badsum"])
+
+
+@pytest.mark.parametrize("junk", [["x"], "oops", 5, [1, 2], None, {"a": 1}])
+def test_wrong_shaped_new_tasks_are_rejected_not_a_crash(junk):
+    with pytest.raises(ValueError):
+        validate_new_tasks(junk, ORPHANS, {}, IST)
+
+
+@pytest.mark.parametrize("junk", [["a"], "a", 5, None])
+def test_wrong_shaped_thread_assignments_are_rejected_not_a_crash(junk):
+    with pytest.raises(ValueError):
+        validate_backfill(junk, [{"id": "a", "project": "p"}], {})
+
+
+def _orphan_commit(sandbox):
+    (sandbox.dir / "commits.json").write_text(json.dumps({"generated_at": "2026-10-13T10:00:00+05:30", "since": "2026-10-01",
+        "author_pattern": "me", "commits": [{"sha": "a" * 40, "date": "2026-10-12T10:00:00+05:30", "project": "alpha", "repo": "r",
+        "repo_path": "alpha/r", "subject": "s", "body": "", "files": [], "ins": 1, "del": 0}]}), encoding="utf-8")
+
+
+def _set_summariser(sandbox, argv):
+    cfg = json.loads((sandbox.dir / "config.json").read_text(encoding="utf-8"))
+    cfg["summariser"] = argv
+    (sandbox.dir / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
+
+
+def test_a_fresh_install_without_tasks_json_still_gets_summaries(sandbox, tmp_path):
+    # init and scan never create tasks.json; the old README had users `echo` it by hand
+    script = tmp_path / "fake_llm.py"
+    script.write_text("import json\nprint(json.dumps({'tasks': [{'date': '2026-10-12', 'project': 'alpha', 'kind': 'feature', 'thread': 'T',"
+                      " 'title': 't', 'summary': 's', 'details': [], 'commits': ['aaaaaaa']}]}))\n", encoding="utf-8")
+    _set_summariser(sandbox, [sys.executable, str(script)])
+    _orphan_commit(sandbox)
+    (sandbox.dir / "tasks.json").unlink()
+    r = sandbox("summarise")
+    assert r.returncode == 0, r.stderr
+    assert len(json.loads((sandbox.dir / "tasks.json").read_text(encoding="utf-8"))["tasks"]) == 1
+
+
+def test_summariser_and_git_calls_ask_for_no_console_window(monkeypatch):
+    # on Windows a console program started from a windowless parent (pythonw) flashes a window unless told not to
+    import subprocess
+    from types import SimpleNamespace
+
+    from personal_tracker import scan
+    seen = []
+    monkeypatch.setattr(summarise.procs, "no_window", lambda *a: {"creationflags": 0})
+    monkeypatch.setattr(scan.procs, "no_window", lambda *a: {"creationflags": 0})
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: (seen.append(k), SimpleNamespace(returncode=0, stdout="{}", stderr=""))[1])
+    scan.git(".", "status")
+    summarise.ask("prompt", [sys.executable, "-c", "pass"])
+    assert [k.get("creationflags") for k in seen] == [0, 0]

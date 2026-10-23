@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from datetime import datetime, timedelta
 
-from . import config, files, paths
+from . import config, files, paths, procs
 from .errors import TrackerError
 
 SEP = "\x1e"  # record separator between commits
@@ -18,7 +18,7 @@ FIELD = "\x1f"
 def git(repo, *args):
     return subprocess.run(
         ["git", "-C", repo] + list(args),
-        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        capture_output=True, text=True, encoding="utf-8", errors="replace", **procs.no_window(),
     ).stdout
 
 

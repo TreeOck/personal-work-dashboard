@@ -14,17 +14,22 @@ import subprocess
 from datetime import datetime, tzinfo
 from zoneinfo import ZoneInfo
 
-from . import config, files, paths
+from . import config, files, paths, procs
 from .errors import TrackerError
 
 KINDS = {"feature", "fix", "infra", "docs"}
+SUMMARISER_TIMEOUT = 900   # seconds
 
 
-def load(n):
-    data = files.read_json(paths.file(n))
+def load(n, default=None):
+    data = files.read_json(paths.file(n), default)
     if data is None:
         raise TrackerError("no %s yet -- run: tracker scan" % n)
     return data
+
+
+def load_tasks():
+    return load("tasks.json", {"tasks": []})   # nothing creates tasks.json, so a fresh install starts empty
 
 
 def save_tasks(doc):
@@ -62,6 +67,8 @@ def unique_id(base, taken):
 def validate_new_tasks(new, orphans, known_threads, tz):
     """Raise ValueError unless `new` covers every orphan commit exactly once, on the
     right date and project, and each thread stays inside one project."""
+    if not isinstance(new, list) or not all(isinstance(t, dict) for t in new):
+        raise ValueError("expected a list of task objects")
     want = {c["sha"][:7]: c for c in orphans}
     seen, threads = [], dict(known_threads)
     for t in new:
@@ -92,6 +99,8 @@ def validate_new_tasks(new, orphans, known_threads, tz):
 
 def validate_backfill(assign, tasks, known_threads):
     """`assign` maps task id -> thread for every task lacking one; threads stay per-project."""
+    if not isinstance(assign, dict):
+        raise ValueError("expected an object mapping task ids to threads")
     need = {t["id"]: t for t in tasks if not t.get("thread")}
     if set(assign) != set(need):
         raise ValueError("ids mismatch: missing %s, unknown %s" % (
@@ -110,7 +119,13 @@ def ask(prompt, argv):
     cmd = resolve_command(argv)
     if cmd is None:
         raise TrackerError("summariser command not found: %s (set \"summariser\" in config.json)" % argv[0])
-    r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
+    try:
+        r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=SUMMARISER_TIMEOUT, **procs.no_window())
+    except subprocess.TimeoutExpired as e:
+        raise TrackerError("%s timed out after %s s" % (argv[0], int(e.timeout))) from e
+    except OSError as e:
+        raise TrackerError("couldn't run %s: %s" % (argv[0], e)) from e
     if r.returncode != 0:
         raise TrackerError("%s failed (%d): stderr=%s stdout=%s" % (argv[0], r.returncode, r.stderr.strip()[:500], r.stdout.strip()[:500]))
     txt = re.sub(r"^```(?:json)?\s*|\s*```$", "", r.stdout.strip())
@@ -139,7 +154,7 @@ otherwise make a new short name. A thread belongs to one project only."""
 def summarise(cfg):
     tz = zone(cfg.timezone)
     commits = load("commits.json")["commits"]
-    doc = load("tasks.json")
+    doc = load_tasks()
     covered = [p for t in doc["tasks"] for p in t["commits"]]
     orphans = [c for c in commits if not any(c["sha"].startswith(p) for p in covered)]
     if not orphans:
@@ -178,7 +193,7 @@ Existing threads by project:
 
 
 def backfill_threads(cfg):
-    doc = load("tasks.json")
+    doc = load_tasks()
     need = [t for t in doc["tasks"] if not t.get("thread")]
     if not need:
         print("every task already has a thread")
@@ -221,7 +236,7 @@ def run(backfill=False):
     if cfg.summariser is None:
         print("summaries are off: no \"summariser\" in config.json, so new commits stay 'unsummarised'")
         return
-    doc = load("tasks.json")
+    doc = load_tasks()
     if dedupe_ids(doc):
         save_tasks(doc)
     backfill_threads(cfg) if backfill else summarise(cfg)

@@ -12,31 +12,38 @@ See the README for macOS / Windows / Linux. Short form: `pipx install git+https:
 
 ## Moving from the script layout (one-off cutover)
 
-For an install that still runs `todo.py` / `refresh.sh` / `bin/tracker` from a checkout with the data next to the code. Do it in this order and quickly: until step 6 finishes, anything that calls the old `tracker` still writes the old `todo.json`.
+For an install that still runs `todo.py` / `refresh.sh` / `bin/tracker` from a checkout with the data next to the code. **Do step 0 before you update the checkout:** updating deletes `bin/tracker`, `todo.py` and `refresh.sh`, so the old `tracker` command, the old daily job and the old edit server stop working the moment it does. Then go in this order and quickly: until step 3 finishes, anything that still calls the old `tracker` writes the old `todo.json`.
 
 ```bash
-cd <your checkout>                       # on a version that includes the package (git pull)
-tracker todo --all > ~/tracker-before.txt        # still the OLD command
-cp ~/Library/LaunchAgents/com.valiance.personal-tracker-refresh.plist ~/tracker-old.plist   # rollback copy (macOS)
+cd <your checkout>
 
-# 1. stop the old edit server (its pid is in server.json next to the code)
-kill $(python3 -c "import json; print(json.load(open('server.json'))['pid'])")
-# 2. replace the old command
-rm ~/.local/bin/tracker                           # the old symlink to bin/tracker
+# 0. before updating the checkout (needs the OLD tracker; keeps a baseline and a rollback copy)
+tracker todo --all > ~/tracker-before.txt
+cp ~/Library/LaunchAgents/com.valiance.personal-tracker-refresh.plist ~/tracker-old.plist   # macOS
+[ -f server.json ] && kill $(python3 -c "import json; print(json.load(open('server.json'))['pid'])")   # old edit server, if running
+
+# 1. update the checkout, then replace the old command
+git pull                                          # to a version that includes the package
+rm ~/.local/bin/tracker                           # the old symlink to bin/tracker (now dangling)
 brew install pipx && pipx ensurepath
 pipx install --editable . --python /opt/homebrew/bin/python3.12
-# 3. move the data (copies, verifies, then renames the originals to *.migrated-YYYYMMDD)
+
+# 2. move the data (copies, verifies, then renames the originals to *.migrated-YYYYMMDD)
 tracker migrate
-# 4. replace the old daily job
+
+# 3. replace the old daily job
 launchctl bootout gui/$(id -u)/com.valiance.personal-tracker-refresh
 rm ~/Library/LaunchAgents/com.valiance.personal-tracker-refresh.plist
 tracker schedule on --at 17:00
-# 5. rebuild the 3D desk into the new data folder (migrate doesn't move desk-template.html)
-(cd desk && npm run build)
-# 6. check
+
+# 4. check
 tracker todo --all | diff - ~/tracker-before.txt   # no output = identical
+tracker summarise                                 # first real run of your summariser with the prompt on stdin
+(cd desk && npm run build)                        # rebuild the 3D desk into the new data folder (migrate doesn't move it)
 tracker                                           # page opens with the green "editing" dot
 ```
+
+The `*.migrated-*` files left next to the code are git-ignored (they hold your emails and task history).
 
 On Windows there is no old layout to move; install and run `tracker init`.
 

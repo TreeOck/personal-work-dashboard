@@ -15,7 +15,7 @@ def sandbox(tmp_path):
     home = tmp_path / "home"
     home.mkdir()
     (tmp_path / "repos").mkdir()
-    env = dict(os.environ, TRACKER_HOME=str(home), PYTHONIOENCODING="utf-8")
+    env = dict(os.environ, TRACKER_HOME=str(home))
     env.pop("TRACKER_CONFIG", None)
     (home / "config.json").write_text(json.dumps({"root": str(tmp_path / "repos"), "author_emails": ["me@example.com"],
                                                   "timezone": "Asia/Kolkata", "summariser": None}), encoding="utf-8")

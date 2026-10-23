@@ -10,6 +10,8 @@ It runs in the background: on macOS/Linux in its own session; on Windows with `p
 `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW` flags, so no console window appears. `tracker serve`
 runs it in the foreground.
 
+Each edit runs `python -P -m personal_tracker <command>` with the data folder as its working directory (`-P` keeps whatever folder `tracker` was run from off `sys.path`, so a stray `secrets.py` there can't shadow the standard library), and the background server itself is started the same way.
+
 **Reuse and upgrades:** `tracker` reuses a running server only if it answers `/api/ping` with the same `home` **and** the
 same `version`. A server of this data folder with an older/different version is stopped (SIGTERM, or `taskkill /F` on
 Windows) and replaced; a server that answers for a *different* data folder is left alone and not reused. A `server.json`

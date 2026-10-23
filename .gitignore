@@ -30,3 +30,4 @@ server.json
 *.egg-info/
 build/
 dist/
+*.migrated-*

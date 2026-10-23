@@ -249,3 +249,42 @@ def test_server_start_does_not_do_a_reverse_dns_lookup(monkeypatch):
         assert srv.server_address[0] == "127.0.0.1" and srv.server_name == "127.0.0.1"
     finally:
         srv.server_close()
+
+
+def _shadow_dir(tmp_path):
+    """A folder with a secrets.py that breaks anything importing it: stands in for 'whatever folder you ran tracker from'."""
+    d = tmp_path / "somewhere"
+    d.mkdir()
+    (d / "secrets.py").write_text("raise RuntimeError('the stdlib module was shadowed by the current folder')\n", encoding="utf-8")
+    return d
+
+
+def test_server_started_by_tracker_ignores_the_callers_folder(sandbox, tmp_path):
+    shadow = _shadow_dir(tmp_path)
+    r = subprocess.run([sys.executable, "-P", "-c", "from personal_tracker import server; print(server.ensure())"],
+                       env=sandbox.env, cwd=shadow, capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    port = r.stdout.strip()
+    assert port.isdigit(), "the background server did not start from a folder that shadows the stdlib: " + r.stdout + r.stderr
+    try:
+        assert get("http://127.0.0.1:%s/api/ping" % port)["home"] == str(sandbox.dir)
+    finally:
+        server.terminate(json.loads((sandbox.dir / "server.json").read_text(encoding="utf-8"))["pid"])
+
+
+def test_edits_from_the_page_ignore_the_servers_inherited_folder(sandbox, tmp_path):
+    shadow = _shadow_dir(tmp_path)
+    sandbox("add", "Seed")                                                  # builds dashboard.html
+    p = subprocess.Popen([sys.executable, "-P", "-m", "personal_tracker", "serve"], env=sandbox.env, cwd=shadow, stderr=subprocess.DEVNULL)
+    try:
+        for _ in range(300):
+            if (sandbox.dir / "server.json").exists():
+                break
+            time.sleep(0.1)
+        base = "http://127.0.0.1:%d" % json.loads((sandbox.dir / "server.json").read_text(encoding="utf-8"))["port"]
+        token = re.search(r'name="tracker-token" content="([^"]+)"', urllib.request.urlopen(base + "/").read().decode()).group(1)
+        code, body = post(base, {"action": "note", "id": "t-0001", "text": "from the page"}, token)
+        assert code == 200, body
+    finally:
+        p.terminate()
+        p.wait()

@@ -67,15 +67,15 @@ def refresh(quiet=False):
             print("=== %s refresh start" % datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             try:
                 scan.run()
-            except TrackerError as e:
-                print("scan failed: %s" % e)
+                try:
+                    summarise.run()
+                except Exception as e:   # any summariser problem (hang, bad JSON, crash) must not stop the page being built
+                    print("summarise failed (%s: %s); new commits stay 'unsummarised'" % (type(e).__name__, e))
+                build.build()
+                print("=== done")
+            except Exception as e:       # recorded here too, not only on the scheduler's own error log
+                print("refresh failed: %s" % e)
                 raise
-            try:
-                summarise.run()
-            except TrackerError as e:
-                print("summarise failed (%s); new commits stay 'unsummarised'" % e)
-            build.build()
-            print("=== done")
 
 
 def _ask(prompt):
@@ -179,7 +179,17 @@ def dispatch(args):
         inks.main(args.args)
 
 
+def _utf8_streams():
+    """Windows encodes piped stdout in the ANSI code page (cp1252), so printing a Hindi title or an emoji would raise
+    after the change was already saved. Always write UTF-8; under pythonw the streams are None."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure:
+            reconfigure(encoding="utf-8", errors="replace")
+
+
 def main(argv=None):
+    _utf8_streams()
     args = build_parser().parse_args(argv)
     try:
         if args.cmd not in NO_CONFIG_NEEDED:

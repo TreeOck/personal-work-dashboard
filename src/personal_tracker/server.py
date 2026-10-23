@@ -121,8 +121,8 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError as e:   # includes bad JSON
             return self.reply(400, {"error": str(e)})
         try:
-            r = subprocess.run([sys.executable, "-m", "personal_tracker", *argv],
-                               capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
+            r = subprocess.run(cli_command(sys.executable, argv), cwd=paths.home(), capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", timeout=180)
         except subprocess.TimeoutExpired:
             return self.reply(500, {"error": "the tracker command timed out"})
         err = r.stderr.strip()
@@ -165,6 +165,12 @@ def serve():
                 paths.file("server.json").unlink()
         except (OSError, ValueError, TrackerError):
             pass
+
+
+def cli_command(python, argv):
+    """`python -m personal_tracker <argv>`. -P keeps the current folder off sys.path, so a stray secrets.py or
+    platform.py there can't shadow the standard library (the folder is whatever `tracker` was run from)."""
+    return [python, "-P", "-m", "personal_tracker", *argv]
 
 
 def detach_kwargs(plat=sys.platform):
@@ -245,8 +251,8 @@ def ensure():
     _stop_old_version()
     paths.home().mkdir(parents=True, exist_ok=True)
     with open(paths.file("server.log"), "a", encoding="utf-8") as log:
-        subprocess.Popen([background_python(), "-m", "personal_tracker", "serve"],
-                         stdout=log, stderr=log, stdin=subprocess.DEVNULL, **detach_kwargs())
+        subprocess.Popen(cli_command(background_python(), ["serve"]), cwd=paths.home(),   # not the caller's folder: Windows
+                         stdout=log, stderr=log, stdin=subprocess.DEVNULL, **detach_kwargs())   # can't delete a folder in use
     for _ in range(150):   # up to 15 s: a cold Python start on a slow machine can take a while
         time.sleep(0.1)
         port = running_port()
