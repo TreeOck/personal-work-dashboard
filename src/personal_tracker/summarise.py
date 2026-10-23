@@ -1,40 +1,54 @@
-#!/usr/bin/env python3
 """Summarise commits that no task covers yet, using `claude -p` (no tools, JSON out).
 
-  python3 summarise.py                     # summarise new commits (run by refresh.sh)
-  python3 summarise.py --backfill-threads  # give a thread to every task that has none
+  tracker summarise                     # summarise new commits (run by `tracker refresh`)
+  tracker summarise --backfill-threads  # give a thread to every task that has none
 
-Claude only returns JSON; this script validates it and merges it into tasks.json.
+Claude only returns JSON; this module validates it and merges it into tasks.json.
 On any failure tasks.json is left untouched and the dashboard keeps showing those
 commits as 'unsummarised' (or the tasks without a thread).
 """
 import json
-import os
 import re
+import shutil
 import subprocess
-import sys
-from datetime import datetime
+from datetime import datetime, tzinfo
 from zoneinfo import ZoneInfo
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-IST = ZoneInfo("Asia/Kolkata")
+from . import config, files, paths, procs
+from .errors import TrackerError
+
 KINDS = {"feature", "fix", "infra", "docs"}
+SUMMARISER_TIMEOUT = 900   # seconds
 
 
-def load(n):
-    with open(os.path.join(HERE, n)) as f:
-        return json.load(f)
+def load(n, default=None):
+    data = files.read_json(paths.file(n), default)
+    if data is None:
+        raise TrackerError("no %s yet -- run: tracker scan" % n)
+    return data
+
+
+def load_tasks():
+    return load("tasks.json", {"tasks": []})   # nothing creates tasks.json, so a fresh install starts empty
 
 
 def save_tasks(doc):
-    out = os.path.join(HERE, "tasks.json")
-    with open(out + ".tmp", "w") as f:
-        json.dump(doc, f, indent=1, ensure_ascii=False)
-    os.replace(out + ".tmp", out)
+    files.write_json(paths.file("tasks.json"), doc)
 
 
-def ist(iso):
-    return datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(IST)  # py3.9 can't parse "Z"
+def zone(name: str | None) -> tzinfo:
+    """The configured IANA zone, or this computer's own zone when none is set."""
+    return ZoneInfo(name) if name else datetime.now().astimezone().tzinfo
+
+
+def local(iso: str, tz: tzinfo) -> datetime:
+    return datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(tz)
+
+
+def resolve_command(argv: list[str]) -> list[str] | None:
+    """argv with its program resolved to an absolute path (finds .cmd/.exe shims on Windows), or None."""
+    exe = shutil.which(argv[0])
+    return [exe, *argv[1:]] if exe else None
 
 
 def thread_projects(tasks):
@@ -50,9 +64,11 @@ def unique_id(base, taken):
     return "%s-%d" % (base, i)
 
 
-def validate_new_tasks(new, orphans, known_threads):
+def validate_new_tasks(new, orphans, known_threads, tz):
     """Raise ValueError unless `new` covers every orphan commit exactly once, on the
     right date and project, and each thread stays inside one project."""
+    if not isinstance(new, list) or not all(isinstance(t, dict) for t in new):
+        raise ValueError("expected a list of task objects")
     want = {c["sha"][:7]: c for c in orphans}
     seen, threads = [], dict(known_threads)
     for t in new:
@@ -71,7 +87,7 @@ def validate_new_tasks(new, orphans, known_threads):
             if p not in want:
                 raise ValueError("unknown sha %s" % p)
             c = want[p]
-            if str(ist(c["date"]).date()) != t["date"]:
+            if str(local(c["date"], tz).date()) != t["date"]:
                 raise ValueError("date mismatch for %s" % p)
             if c["project"] != t["project"]:
                 raise ValueError("project mismatch for %s" % p)
@@ -83,6 +99,8 @@ def validate_new_tasks(new, orphans, known_threads):
 
 def validate_backfill(assign, tasks, known_threads):
     """`assign` maps task id -> thread for every task lacking one; threads stay per-project."""
+    if not isinstance(assign, dict):
+        raise ValueError("expected an object mapping task ids to threads")
     need = {t["id"]: t for t in tasks if not t.get("thread")}
     if set(assign) != set(need):
         raise ValueError("ids mismatch: missing %s, unknown %s" % (
@@ -96,17 +114,25 @@ def validate_backfill(assign, tasks, known_threads):
             raise ValueError("thread %r used in two projects" % th)
 
 
-def ask_claude(prompt):
-    r = subprocess.run(["claude", "-p", "--model", "sonnet", "--tools", "", "--no-session-persistence",
-                        "--output-format", "text", prompt],
-                       capture_output=True, text=True, timeout=900, stdin=subprocess.DEVNULL)
+def ask(prompt, argv):
+    """Run the configured summariser: prompt on stdin, JSON on stdout."""
+    cmd = resolve_command(argv)
+    if cmd is None:
+        raise TrackerError("summariser command not found: %s (set \"summariser\" in config.json)" % argv[0])
+    try:
+        r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=SUMMARISER_TIMEOUT, **procs.no_window())
+    except subprocess.TimeoutExpired as e:
+        raise TrackerError("%s timed out after %s s" % (argv[0], int(e.timeout))) from e
+    except OSError as e:
+        raise TrackerError("couldn't run %s: %s" % (argv[0], e)) from e
     if r.returncode != 0:
-        sys.exit("claude -p failed (%d): stderr=%s stdout=%s" % (r.returncode, r.stderr.strip()[:500], r.stdout.strip()[:500]))
+        raise TrackerError("%s failed (%d): stderr=%s stdout=%s" % (argv[0], r.returncode, r.stderr.strip()[:500], r.stdout.strip()[:500]))
     txt = re.sub(r"^```(?:json)?\s*|\s*```$", "", r.stdout.strip())
     try:
         return json.loads(txt)
     except Exception as e:
-        sys.exit("could not parse claude output as JSON: %s\n%s" % (e, txt[:500]))
+        raise TrackerError("could not parse %s output as JSON: %s\n%s" % (argv[0], e, txt[:500])) from e
 
 
 def threads_hint(tasks):
@@ -125,9 +151,10 @@ THREAD_RULES = """A "thread" names a piece of work that can span several days, e
 otherwise make a new short name. A thread belongs to one project only."""
 
 
-def summarise():
+def summarise(cfg):
+    tz = zone(cfg.timezone)
     commits = load("commits.json")["commits"]
-    doc = load("tasks.json")
+    doc = load_tasks()
     covered = [p for t in doc["tasks"] for p in t["commits"]]
     orphans = [c for c in commits if not any(c["sha"].startswith(p) for p in covered)]
     if not orphans:
@@ -135,7 +162,7 @@ def summarise():
         return
     lines = []
     for c in sorted(orphans, key=lambda c: c["date"]):
-        d = ist(c["date"])
+        d = local(c["date"], tz)
         lines.append("- sha=%s date=%s time=%s project=%s repo=%s +%d/-%d\n  subject: %s\n  body: %s\n  files: %s" % (
             c["sha"][:7], d.date(), d.strftime("%H:%M"), c["project"], c["repo"], c["ins"], c["del"],
             c["subject"], (c["body"] or "(none)")[:700].replace("\n", " "), ", ".join(c["files"][:15]) or "(none)"))
@@ -152,10 +179,10 @@ Rules:
 Existing threads by project:
 """ + threads_hint(doc["tasks"]) + "\n\nCommits:\n" + "\n".join(lines)
     try:
-        new = ask_claude(prompt)["tasks"]
-        validate_new_tasks(new, orphans, thread_projects(doc["tasks"]))
+        new = ask(prompt, cfg.summariser)["tasks"]
+        validate_new_tasks(new, orphans, thread_projects(doc["tasks"]), tz)
     except (KeyError, TypeError, ValueError) as e:
-        sys.exit("rejected claude output: %s" % e)
+        raise TrackerError("rejected claude output: %s" % e) from e
     taken = {t["id"] for t in doc["tasks"]}
     for t in new:
         t["thread"] = t["thread"].strip()
@@ -165,8 +192,8 @@ Existing threads by project:
     print("added %d tasks covering %d commits" % (len(new), len(orphans)))
 
 
-def backfill_threads():
-    doc = load("tasks.json")
+def backfill_threads(cfg):
+    doc = load_tasks()
     need = [t for t in doc["tasks"] if not t.get("thread")]
     if not need:
         print("every task already has a thread")
@@ -182,10 +209,10 @@ Output ONLY a JSON object mapping every task id to its thread name, no prose, no
 Existing threads by project:
 """ + threads_hint(doc["tasks"]) + "\n\nTasks:\n" + rows
     try:
-        assign = ask_claude(prompt)["threads"]
+        assign = ask(prompt, cfg.summariser)["threads"]
         validate_backfill(assign, doc["tasks"], thread_projects(doc["tasks"]))
     except (KeyError, TypeError, ValueError) as e:
-        sys.exit("rejected claude output: %s" % e)
+        raise TrackerError("rejected claude output: %s" % e) from e
     for t in need:
         t["thread"] = assign[t["id"]].strip()
     save_tasks(doc)
@@ -204,8 +231,12 @@ def dedupe_ids(doc):
     return fixed
 
 
-if __name__ == "__main__":
-    doc = load("tasks.json")
+def run(backfill=False):
+    cfg = config.load()
+    if cfg.summariser is None:
+        print("summaries are off: no \"summariser\" in config.json, so new commits stay 'unsummarised'")
+        return
+    doc = load_tasks()
     if dedupe_ids(doc):
         save_tasks(doc)
-    backfill_threads() if "--backfill-threads" in sys.argv else summarise()
+    backfill_threads(cfg) if backfill else summarise(cfg)

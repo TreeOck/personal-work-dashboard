@@ -1,4 +1,4 @@
-import inks
+from personal_tracker import inks
 
 PAL = [i["id"] for i in inks.load_palette()]
 

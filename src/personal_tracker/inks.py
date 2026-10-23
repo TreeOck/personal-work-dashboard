@@ -1,25 +1,22 @@
-#!/usr/bin/env python3
-"""Project -> fountain-pen ink assignments (inks.json, gitignored).
+"""Project -> fountain-pen ink assignments (inks.json in the data folder).
 
-  python3 inks.py set <project> <ink-id>   # pin one project's ink
-  python3 inks.py list                     # show assignments
+  tracker inks set <project> <ink-id>   # pin one project's ink
+  tracker inks list                     # show assignments
 
 Assignments never change once made; new projects take the next unused ink
 (palette order, fallback ink last); past 12 projects inks repeat with variant+1.
 """
 import json
-import os
-import sys
+from importlib import resources
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-PALETTE_PATH = os.path.join(HERE, "desk", "src", "data", "inks.json")
-ASSIGN_PATH = os.path.join(HERE, "inks.json")
+from . import files, paths
+from .errors import TrackerError
+
 FALLBACK = "take-sumi"
 
 
 def load_palette():
-    with open(PALETTE_PATH) as f:
-        return json.load(f)
+    return json.loads(resources.files("personal_tracker").joinpath("data/inks.json").read_text(encoding="utf-8"))
 
 
 def assign(projects, existing):
@@ -47,30 +44,22 @@ def resolve(assignment):
 
 
 def load_assignments():
-    if not os.path.exists(ASSIGN_PATH):
-        return {}
-    with open(ASSIGN_PATH) as f:
-        return json.load(f)
+    return files.read_json(paths.file("inks.json"), {})
 
 
 def save_assignments(a):
-    with open(ASSIGN_PATH + ".tmp", "w") as f:
-        json.dump(a, f, indent=1, sort_keys=True)
-    os.replace(ASSIGN_PATH + ".tmp", ASSIGN_PATH)
+    paths.home().mkdir(parents=True, exist_ok=True)
+    files.write_text(paths.file("inks.json"), json.dumps(a, indent=1, sort_keys=True))
 
 
 def main(argv):
     if argv[:1] == ["set"] and len(argv) == 3:
         if argv[2] not in {i["id"] for i in load_palette()}:
-            sys.exit("unknown ink %r; choose from: %s" % (argv[2], ", ".join(i["id"] for i in load_palette())))
+            raise TrackerError("unknown ink %r; choose from: %s" % (argv[2], ", ".join(i["id"] for i in load_palette())))
         a = load_assignments(); a[argv[1]] = {"ink": argv[2], "variant": 0}; save_assignments(a)
         print("%s -> %s" % (argv[1], argv[2]))
     elif argv[:1] == ["list"]:
         for p, v in sorted(resolve(load_assignments()).items()):
             print("%-32s %s (%s)%s" % (p, v["name"], v["hex"], " variant %d" % v["variant"] if v["variant"] else ""))
     else:
-        sys.exit(__doc__)
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
+        raise TrackerError(__doc__.strip())
