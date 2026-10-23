@@ -27,3 +27,6 @@ desk/dev-data.json
 
 # edit server
 server.json
+*.egg-info/
+build/
+dist/
