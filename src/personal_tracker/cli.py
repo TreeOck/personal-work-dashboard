@@ -6,7 +6,7 @@ import webbrowser
 from datetime import date, datetime
 from pathlib import Path
 
-from . import __version__, build, config, inks, paths, scan, server, setup, summarise, todo
+from . import __version__, build, config, inks, paths, scan, schedule, server, setup, summarise, todo
 from .errors import TrackerError
 
 NO_CONFIG_NEEDED = ("init", "migrate")
@@ -37,6 +37,8 @@ def build_parser():
     s = sub.add_parser("scan"); s.add_argument("--days", type=int, default=14); s.add_argument("--since")
     sub.add_parser("summarise").add_argument("--backfill-threads", action="store_true")
     sub.add_parser("build")
+    sc = sub.add_parser("schedule", help="daily refresh: on / off / status")
+    sc.add_argument("action", choices=["on", "off", "status"]); sc.add_argument("--at", default="17:00", help="HH:MM, 24-hour (default 17:00)")
     i = sub.add_parser("inks", help="project ink colours for the desk"); i.add_argument("args", nargs="*")
     return ap
 
@@ -156,6 +158,13 @@ def dispatch(args):
         summarise.run(args.backfill_threads)
     elif c == "build":
         build.build()
+    elif c == "schedule":
+        if args.action == "on":
+            schedule.on(args.at)
+        elif args.action == "off":
+            schedule.off()
+        else:
+            print(schedule.status())
     elif c == "inks":
         inks.main(args.args)
 
