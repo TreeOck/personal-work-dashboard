@@ -31,6 +31,6 @@ In the data folder (`$TRACKER_HOME`, default `~/.personal-tracker`). Written by 
 | `root` | string | Folder containing your git repos; `~` is expanded when read |
 | `author_emails` | list of strings | At least one; every email you commit as |
 | `timezone` | IANA name or `null` | Day boundaries (Python) and display (page). `null` = this computer's zone. Invalid names are rejected |
-| `summariser` | list of strings or `null` | Command + arguments; prompt on stdin, JSON on stdout. Resolved with `shutil.which`. `null` = no summaries |
+| `summariser` | list of strings or `null` | Command + arguments; prompt on stdin (UTF-8), JSON on stdout (UTF-8). Resolved with `shutil.which`. `null` = no summaries |
 
 Migration: `tracker migrate` copies an old checkout's `config.json`, adding `"timezone": "Asia/Kolkata"` and the Claude summariser when the keys are missing (what the old scripts did implicitly).

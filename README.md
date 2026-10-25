@@ -117,7 +117,7 @@ Everything lives in one folder: `$TRACKER_HOME`, else `~/.personal-tracker` (`%U
 - `root`: the folder with your repos. A *project* is a top-level folder under it, and a *repo* is a git repo inside it, up to 3 levels deep.
 - `author_emails`: every email you commit as.
 - `timezone`: IANA name used for day boundaries. Leave it out (or `null`) to use this computer's timezone.
-- `summariser`: the command and its arguments. It receives the prompt on stdin and must print JSON. `null` turns summaries off.
+- `summariser`: the command and its arguments. It receives the prompt on stdin and must print JSON (UTF-8). `null` turns summaries off.
 
 ## How it works
 

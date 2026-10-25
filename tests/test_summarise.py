@@ -133,7 +133,8 @@ def test_no_summariser_configured_is_a_noop(sandbox, tmp_path):
 
 def test_configured_summariser_gets_the_prompt_on_stdin_and_its_json_is_validated_and_saved(sandbox, tmp_path):
     script = tmp_path / "fake_llm.py"
-    script.write_text("import sys, json\nassert 'alpha' in sys.stdin.read()\n"
+    script.write_text("import sys, json\nassert 'alpha' in sys.stdin.buffer.read().decode('utf-8')\n"
+        "sys.stdout.reconfigure(encoding='utf-8')   # a real summariser prints UTF-8; Windows would pipe cp1252 otherwise\n"
         "print(json.dumps({'tasks': [{'date': '2026-10-12', 'project': 'alpha', 'kind': 'feature', 'thread': 'T',"
         " 'title': 'हिंदी → ✅', 'summary': 's', 'details': [], 'commits': ['aaaaaaa']}]}, ensure_ascii=False))\n", encoding="utf-8")
     cfg = json.loads((sandbox.dir / "config.json").read_text(encoding="utf-8"))
