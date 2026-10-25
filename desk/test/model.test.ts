@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { buildModel, inkFor, istYmd } from "../src/data/model";
-import inks from "../src/data/inks.json";
+import inks from "../../src/personal_tracker/data/inks.json";
 import { NOW, data, item } from "./fixture";
 
 describe("buildModel", () => {

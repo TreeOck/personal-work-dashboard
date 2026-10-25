@@ -270,7 +270,8 @@ kbd{font:11px ui-monospace,Menlo,monospace;border:1px solid var(--line);border-b
 const DATA = /*__DATA__*/null;
 const TOKEN = document.querySelector('meta[name="tracker-token"]')?.content || "";
 const EDIT = !!TOKEN && location.protocol === "http:";
-const TZ = "Asia/Kolkata";
+const TZ = DATA.timezone || undefined;   // undefined = this browser's own zone
+const ZN = new Intl.DateTimeFormat("en-GB", {timeZone: TZ, timeZoneName: "short"}).formatToParts(new Date()).find(p => p.type === "timeZoneName").value;
 const fmtDay = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-GB", {weekday:"short", day:"numeric", month:"short", year:"numeric", timeZone:"UTC"});
 const fmtDayShort = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-GB", {weekday:"short", day:"numeric", month:"short", timeZone:"UTC"});
 const fmtShort = d => new Date(d + "T12:00:00Z").toLocaleDateString("en-GB", {day:"numeric", month:"short", timeZone:"UTC"});
@@ -374,7 +375,7 @@ function taskHTML(t, showDate) {
   return `<div class="task" data-task="${esc(t.id)}" tabindex="0">
     <div class="task-top"><span class="kind ${t.kind}">${t.kind}</span><div><div class="task-title">${esc(t.title)}</div><div class="task-sum">${esc(t.summary)}</div></div></div>
     ${det}
-    <div class="meta">${showDate ? `<span>${fmtDayShort(t.date)}</span>` : `<span class="tag">${esc(t.thread)}</span>`}<span>${esc(t.repos.join(", "))}</span><span>${pl(t.cs.length, "commit")}</span><span>${t.times[0]}${t.times.length>1?"–"+t.times[t.times.length-1]:""} IST</span><span><span class="add">+${t.ins}</span> <span class="del">-${t.del}</span></span></div>
+    <div class="meta">${showDate ? `<span>${fmtDayShort(t.date)}</span>` : `<span class="tag">${esc(t.thread)}</span>`}<span>${esc(t.repos.join(", "))}</span><span>${pl(t.cs.length, "commit")}</span><span>${t.times[0]}${t.times.length>1?"–"+t.times[t.times.length-1]:""} ${ZN}</span><span><span class="add">+${t.ins}</span> <span class="del">-${t.del}</span></span></div>
     <details><summary>Commits</summary><div class="commits">${commitRows(t.cs)}</div></details>
   </div>`;
 }
@@ -466,7 +467,7 @@ function renderCurrent() {
   const [[h1, prog], [h2, todoItems], [hp, paused], [h3, done]] = boardCols();
   const hint = EDIT ? `<div class="hint">Nothing here. Type a task in the box above.</div>` : `<div class="hint">Nothing here. Add one with <code>tracker add "Title" -p myproject -r my-repo</code></div>`;
   const board = `<div class="board">${[[h1, prog], [h2, todoItems]].map(([h, items]) => `<section class="col"><h2><span>${h}</span><span>${items.length}</span></h2>${items.map(card).join("") || hint}</section>`).join("")}</div>`;
-  // done: one line per task, grouped by the IST day it closed; today and yesterday open
+  // done: one line per task, grouped by the day it closed (in the configured timezone); today and yesterday open
   const yday = addDays(TODAY, -1), byDay = groupBy(done, i => istDate(i.closed_at));
   const row = i => `<button class="row" data-todo="${esc(i.id)}"><span class="ck">✓</span><span class="tt">${esc(i.title)}</span><span class="m r">${esc(where(i))}</span><span class="m c">${i.project ? pl(i.cs.length, "commit") : ""}</span><span class="m">${istTime(i.closed_at)}</span></button>`;
   const groups = Object.keys(byDay).sort().reverse().map(d => {
@@ -512,7 +513,7 @@ function todoDetail(i) {
 }
 function taskDetail(t) {
   const facts = [["Kind", `<span class="kind ${t.kind}">${t.kind}</span>`], ["Day", fmtDay(t.date)], ["Project", esc(t.project)],
-    ["Repos", esc(t.repos.join(", "))], ["Time", `${t.times[0]}${t.times.length > 1 ? "–" + t.times[t.times.length-1] : ""} IST`],
+    ["Repos", esc(t.repos.join(", "))], ["Time", `${t.times[0]}${t.times.length > 1 ? "–" + t.times[t.times.length-1] : ""} ${ZN}`],
     ["Commits", `${t.cs.length} · <span class="add">+${t.ins}</span> <span class="del">-${t.del}</span>`], ["Thread", esc(t.thread)]];
   let h = `<dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>`;
   h += `<h3>Summary</h3><div>${esc(t.summary)}</div>`;
@@ -642,7 +643,7 @@ async function copyModal() {
 }
 
 // ---- wiring
-document.getElementById("gen").textContent = `Commits by ${DATA.author_pattern} · since ${firstDay} · refreshed ${new Date(DATA.generated_at).toLocaleString("en-GB",{timeZone:TZ})} IST`;
+document.getElementById("gen").textContent = `Commits by ${DATA.author_pattern} · since ${firstDay} · refreshed ${new Date(DATA.generated_at).toLocaleString("en-GB",{timeZone:TZ})} ${ZN} · v${DATA.version}`;
 document.getElementById("tabs").addEventListener("click", e => { const b = e.target.closest(".tab"); if (b) setView(b.dataset.v); });
 document.getElementById("period").addEventListener("click", e => { if (e.target.id === "prev") step(-1); if (e.target.id === "next") step(1); });
 const q = document.getElementById("q");

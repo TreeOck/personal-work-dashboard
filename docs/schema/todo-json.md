@@ -21,3 +21,16 @@ Transitions: `pause` only from `in_progress` (pausing a paused task prints "alre
 `pauses` or after `paused_at`.
 
 Migration: none needed. Items written before pausing existed have no `paused_at` / `pauses`; every reader uses `.get`.
+
+## `config.json`
+
+In the data folder (`$TRACKER_HOME`, default `~/.personal-tracker`). Written by `tracker init`; read by every command.
+
+| Field | Type | Notes |
+|---|---|---|
+| `root` | string | Folder containing your git repos; `~` is expanded when read |
+| `author_emails` | list of strings | At least one; every email you commit as |
+| `timezone` | IANA name or `null` | Day boundaries (Python) and display (page). `null` = this computer's zone. Invalid names are rejected |
+| `summariser` | list of strings or `null` | Command + arguments; prompt on stdin (UTF-8), JSON on stdout (UTF-8). Resolved with `shutil.which`. `null` = no summaries |
+
+Migration: `tracker migrate` copies an old checkout's `config.json`, adding `"timezone": "Asia/Kolkata"` and the Claude summariser when the keys are missing (what the old scripts did implicitly).
