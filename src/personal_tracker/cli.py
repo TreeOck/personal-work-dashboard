@@ -6,7 +6,7 @@ import webbrowser
 from datetime import date, datetime
 from pathlib import Path
 
-from . import __version__, build, config, inks, paths, scan, schedule, server, setup, summarise, todo
+from . import __version__, build, config, inks, locate, paths, scan, schedule, server, setup, summarise, todo
 from .errors import TrackerError
 
 NO_CONFIG_NEEDED = ("init", "migrate")
@@ -25,6 +25,7 @@ def build_parser():
     m.add_argument("--from", dest="src", help="folder holding the old config.json / todo.json (default: this checkout)")
     a = sub.add_parser("add", help="add a task; prints its id")
     a.add_argument("title"); a.add_argument("-p", "--project"); a.add_argument("-r", "--repo"); a.add_argument("--plan")
+    a.add_argument("--path", help="your workspace folder; fills in project and repo unless -p / -r are given")
     for c in ("start", "done", "drop"):
         sub.add_parser(c).add_argument("id")
     p = sub.add_parser("pause"); p.add_argument("id"); p.add_argument("reason", nargs="?", default="")
@@ -132,7 +133,11 @@ def dispatch(args):
     elif c == "migrate":
         run_migrate(args)
     elif c == "add":
-        print(todo.add(args.title, args.project, args.repo, args.plan)["id"])
+        project, repo = args.project, args.repo
+        if args.path:
+            p, r = locate.project_repo_for(args.path, config.load().root)
+            project, repo = project or p, repo or r
+        print(todo.add(args.title, project, repo, args.plan)["id"])
     elif c in ("start", "done", "drop"):
         it, changed = todo.set_status(args.id, c)
         new = {"start": "in_progress", "done": "done", "drop": "dropped"}[c]

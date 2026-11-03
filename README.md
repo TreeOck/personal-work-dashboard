@@ -49,6 +49,7 @@ Coming from the old script layout (`todo.py`, `refresh.sh`, data next to the cod
 tracker                      # open the dashboard (editable: see below)
 tracker refresh              # rescan git, summarise, rebuild, open (--quiet: no output, no browser)
 tracker add "Title" -p myproject -r my-repo [--plan path]   # prints an id, e.g. t-0007
+tracker add "Title" --path ~/code/myproject/my-repo     # project and repo worked out from the folder
 tracker start t-0007 | tracker done t-0007 | tracker drop t-0007
 tracker pause t-0007 "waiting on review"     # reason optional; `tracker start t-0007` resumes
 tracker note t-0007 "tests passing"
