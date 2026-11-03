@@ -157,7 +157,12 @@ def dispatch(args):
     elif c == "todo":
         print("\n".join(todo.fmt(i) for i in todo.list_items(args.all)) or "no open tasks")
     elif c == "setup":
-        print("\n".join(agent_setup.setup(args.tool, args.remove, args.force) if args.tool else agent_setup.status()))
+        if not args.tool:
+            print("\n".join(agent_setup.status()))
+        else:
+            print("\n".join(agent_setup.setup(args.tool, args.remove, args.force)))
+            if not args.remove:
+                print("\n".join(agent_setup.offer_summaries(args.tool, args.summaries)) or "summaries: unchanged")
     elif c == "mcp":
         mcp_server.serve(sys.stdin, sys.stdout)
     elif c in (None, "open"):

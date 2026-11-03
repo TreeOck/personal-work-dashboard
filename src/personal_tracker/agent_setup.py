@@ -11,7 +11,7 @@ from datetime import datetime
 from importlib import resources
 from pathlib import Path
 
-from . import files, paths, procs
+from . import files, paths, procs, setup as init_setup, summarise
 from .errors import TrackerError
 
 BEGIN = "<!-- personal-work-dashboard:begin (managed by tracker setup) -->"
@@ -337,7 +337,7 @@ def setup(tool, remove=False, force=False):
             del_json_key(p["ag_mcp"], ["mcpServers", SERVER], bdir)
             remove_from_json_list(p["ag_config"], GRANTS_KEYS, ANTIGRAVITY_GRANT, bdir)
             drop_block(p["ag_rules"], bdir)
-        return finish_remove(tool) + ["%s: removed" % tool]
+        return _restore_summariser(tool) + finish_remove(tool) + ["%s: removed" % tool]
 
     if tool == "claude-code":
         _check_json(p["claude_settings"])
@@ -381,3 +381,80 @@ def _is_set_up(tool):
 def status():
     lines = ["%s: %s" % (t, "set up" if _is_set_up(t) else "not set up") for t in TOOLS]
     return lines + ["", "Set one up with: tracker setup <%s>   (undo: --remove)" % "|".join(TOOLS)]
+
+
+# ---- summaries ----------------------------------------------------------------------------------------------------
+
+NAMES = {"claude-code": "Claude Code", "cursor": "Cursor", "antigravity": "Antigravity"}
+SUMMARISERS = {   # tool -> (argv, summariser_input)
+    "claude-code": (init_setup.CLAUDE_SUMMARISER, "stdin"),
+    "cursor": (["agent", "-p", "--mode", "ask", "--trust", "--output-format", "text"], "stdin"),
+    "antigravity": (["agy", "--input-format", "stream-json", "--output-format", "stream-json", "--print-timeout", "600s"],
+                    "agy-stream-json"),
+}
+SIGN_IN = {"claude-code": "run claude once in a terminal and sign in",
+           "cursor": "sign in with: agent login",
+           "antigravity": "run agy once in a terminal and sign in"}
+CHECK_PROMPT = 'Reply with only this JSON object: {"ok": true}'
+
+
+def _want_summaries(tool, choice):
+    if choice is not None:
+        return choice
+    if not sys.stdin.isatty():
+        return False   # scripts and agents: leave summaries as they are
+    name = NAMES[tool]
+    try:
+        ans = input("Use %s to write your daily summaries? It uses your %s account's quota. [Y/n] " % (name, name))
+    except EOFError:
+        return False
+    return ans.strip().lower() in ("", "y", "yes")
+
+
+def offer_summaries(tool, choice):
+    """Ask (or take --summaries / --no-summaries) whether `tool` should write the daily summaries; on yes, check its
+    command works and is signed in, then point config.json at it. Returns lines to print."""
+    if not _want_summaries(tool, choice):
+        return []
+    argv, mode = SUMMARISERS[tool]
+    retry = "then run: tracker setup %s --summaries" % tool
+    exe = shutil.which(argv[0])
+    if exe is None:
+        return ["summaries not switched on: the %s command '%s' was not found (install %s's command-line agent, %s)"
+                % (NAMES[tool], argv[0], NAMES[tool], retry)]
+    cmd = [exe, *argv[1:]]
+    try:
+        ok = summarise.ask(CHECK_PROMPT, cmd, mode) == {"ok": True}
+        problem = "it didn't give the expected answer"
+    except TrackerError as e:
+        ok, problem = False, str(e)[:300]
+    if not ok:
+        return ["summaries not switched on: a test request to %s failed (%s)." % (argv[0], problem),
+                "If you aren't signed in, %s; %s" % (SIGN_IN[tool], retry)]
+    path = paths.file("config.json")
+    raw = files.read_json(path)
+    state = load_state()
+    saved = state.setdefault(tool, {})
+    if "summariser" not in saved:   # the value from before the first setup is what --remove puts back
+        saved["summariser"] = {"summariser": raw.get("summariser"), "summariser_input": raw.get("summariser_input")}
+        save_state(state)
+    raw["summariser"], raw["summariser_input"] = cmd, mode
+    files.write_json(path, raw)
+    return ["daily summaries will be written by %s (%s)" % (NAMES[tool], " ".join(cmd))]
+
+
+def _restore_summariser(tool):
+    saved = load_state().get(tool, {}).get("summariser")
+    if saved is None:
+        return []
+    path = paths.file("config.json")
+    raw = files.read_json(path)
+    if raw is None:
+        return []
+    raw["summariser"] = saved["summariser"]
+    if saved["summariser_input"] is None:
+        raw.pop("summariser_input", None)
+    else:
+        raw["summariser_input"] = saved["summariser_input"]
+    files.write_json(path, raw)
+    return ["summaries: put back the summariser from before setup"]
