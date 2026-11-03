@@ -25,9 +25,9 @@ unexpected shape, isn't UTF-8, or has the begin marker without the end marker, s
 
 | | Claude Code | Cursor | Antigravity |
 |---|---|---|---|
-| Rules (when to add/start/note/pause/done) | block in `~/.claude/CLAUDE.md` using `tracker` commands | **printed: you paste it** into Cursor → Settings → Rules → User Rules | block in `~/.gemini/AGENTS.md` using the MCP tools |
+| Rules (when to add/start/note/pause/done) | block in `~/.claude/CLAUDE.md` using `tracker` commands | **printed: you paste it** into Cursor → Customize → Rules (older versions: Settings → Rules → User Rules) | block in `~/.gemini/AGENTS.md` using the MCP tools |
 | Connection | none (it runs the `tracker` command) | `mcpServers.tracker` in `~/.cursor/mcp.json` | `mcpServers.tracker` in `~/.gemini/config/mcp_config.json` |
-| No permission prompts | `Bash(tracker:*)` in `~/.claude/settings.json` → `permissions.allow` | can't be set from a file: Cursor asks once, click **Allow** | `mcp(tracker/*)` in `~/.gemini/config/config.json` → `userSettings.globalPermissionGrants.allow` |
+| No permission prompts | `Bash(tracker:*)` in `~/.claude/settings.json` → `permissions.allow` | can't be set from a file: Cursor asks for approval, click **Run** (older versions: Allow) | `mcp(tracker/*)` in `~/.gemini/config/config.json` → `userSettings.globalPermissionGrants.allow` |
 | Summaries (if you say yes) | `claude -p --model sonnet …` | `agent -p --mode ask --trust --output-format text` | `agy` with stream-json input |
 
 The rules blocks sit between `<!-- personal-work-dashboard:begin (managed by tracker setup) -->` and
@@ -43,8 +43,9 @@ server entry that points somewhere else is replaced, with a warning; `--remove` 
 - **Claude Code:** the terminal, the IDE extensions and the desktop app's local sessions all read `~/.claude`. Cloud
   sessions run on another machine and can't reach your tracker. If you already have tracker rules in your
   `CLAUDE.md` (the owner does), don't run `setup claude-code`: it would add a second, equivalent block.
-- **Cursor:** paste the printed rules once. The first time an agent calls a tracker tool Cursor asks
-  "Allow / Always allow / Reject"; plain Allow is remembered.
+- **Cursor:** paste the printed rules once (Customize → Rules in Cursor 3.x). The first time an agent calls a tracker
+  tool, Cursor asks for approval: **Run** in Cursor 3.x, "Allow / Always allow / Reject" in older versions, where plain
+  Allow was remembered.
 - **Antigravity:** quit the app (all windows) before setup or `--remove`; while it runs it may rewrite
   `config.json` and drop the grant. Setup refuses while it's open unless you pass `--force`.
 

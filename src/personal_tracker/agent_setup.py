@@ -412,9 +412,9 @@ def _apply(tool, remove, bdir):
     elif tool == "cursor":
         _connect(tool, p["cursor_mcp"], bdir, out)
         out += ["", "One step left (Cursor keeps its global rules in its settings, not in a file):",
-                "open Cursor → Settings → Rules → User Rules, and paste this text:", "",
+                "open Cursor → Customize → Rules (older versions: Settings → Rules → User Rules), add a rule and paste this text:", "",
                 rules("mcp").rstrip("\n"), "",
-                "The first time an agent uses the tracker, Cursor asks once: click Allow (it remembers)."]
+                "The first time an agent uses the tracker, Cursor asks for approval: click Run (older versions: Allow)."]
     else:
         _connect(tool, p["ag_mcp"], bdir, out)
         if _grant(tool, p["ag_config"], GRANTS_KEYS, ANTIGRAVITY_GRANT, bdir):

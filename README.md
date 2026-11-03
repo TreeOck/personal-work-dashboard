@@ -77,7 +77,7 @@ One command connects an AI coding tool so it keeps the Current board in sync on 
 
 ```
 tracker setup claude-code    # rules in ~/.claude/CLAUDE.md, `tracker` allowed without prompts
-tracker setup cursor         # MCP server in ~/.cursor/mcp.json; prints rules to paste into Settings → Rules → User Rules
+tracker setup cursor         # MCP server in ~/.cursor/mcp.json; prints rules to paste into Customize → Rules
 tracker setup antigravity    # MCP server, rules in ~/.gemini/AGENTS.md, tools allowed without prompts (quit Antigravity first)
 tracker setup                # what's set up;  add --remove to undo
 ```

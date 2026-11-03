@@ -52,9 +52,9 @@ def test_cursor_setup_prints_paste_instructions(home):
     out = "\n".join(a.setup("cursor"))
     assert _j(home / ".cursor" / "mcp.json") == {"mcpServers": {"tracker": a.mcp_entry()}}
     assert {k: a.mcp_entry()[k] for k in ("command", "args")} == {"command": sys.executable, "args": ["-P", "-m", "personal_tracker", "mcp"]}
-    assert "Settings → Rules" in out and "User Rules" in out
+    assert "Customize → Rules" in out
     assert "tracker_add" in out and "path" in out
-    assert "Allow" in out
+    assert "click Run" in out
     a.setup("cursor", remove=True)
     assert not (home / ".cursor" / "mcp.json").exists()
 
