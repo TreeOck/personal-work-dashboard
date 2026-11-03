@@ -5,10 +5,13 @@ copy of each file before its first change (<data>/setup-backups/<time>/<tool>/),
 <data>/setup-state.json so `--remove` can put things back. See docs/operations/agent-setup.md."""
 import json
 import shutil
+import subprocess
+import sys
 from datetime import datetime
+from importlib import resources
 from pathlib import Path
 
-from . import files, paths
+from . import files, paths, procs
 from .errors import TrackerError
 
 BEGIN = "<!-- personal-work-dashboard:begin (managed by tracker setup) -->"
@@ -248,3 +251,133 @@ def finish_remove(tool):
     state.pop(tool, None)
     save_state(state)
     return out
+
+
+# ---- the three tools ----------------------------------------------------------------------------------------------
+
+TOOLS = ("claude-code", "cursor", "antigravity")
+SERVER = "tracker"
+CLAUDE_GRANT = "Bash(tracker:*)"
+ANTIGRAVITY_GRANT = "mcp(tracker/*)"
+GRANTS_KEYS = ["userSettings", "globalPermissionGrants", "allow"]
+
+
+def _paths():
+    h = Path.home()
+    return {"claude_md": h / ".claude" / "CLAUDE.md", "claude_settings": h / ".claude" / "settings.json",
+            "cursor_mcp": h / ".cursor" / "mcp.json",
+            "ag_mcp": h / ".gemini" / "config" / "mcp_config.json", "ag_config": h / ".gemini" / "config" / "config.json",
+            "ag_rules": h / ".gemini" / "AGENTS.md"}
+
+
+def mcp_entry():
+    """How an app starts the server: this interpreter by absolute path (GUI apps don't get the shell's PATH);
+    -P so the app's working folder can't shadow the package."""
+    return {"command": sys.executable, "args": ["-P", "-m", "personal_tracker", "mcp"]}
+
+
+def rules(wording):
+    """The rules text: wording "cli" (tracker commands) or "mcp" (tool names)."""
+    return resources.files("personal_tracker").joinpath("templates/rules-%s.md" % wording).read_text(encoding="utf-8")
+
+
+def _run(argv):
+    """(returncode, stdout) of a quick OS command; (1, "") when it can't run."""
+    try:
+        r = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15,
+                           **procs.no_window())
+    except (OSError, subprocess.SubprocessError):
+        return 1, ""
+    return r.returncode, r.stdout
+
+
+def antigravity_running():
+    if sys.platform == "darwin":
+        return _run(["pgrep", "-f", "Antigravity.app"])[0] == 0
+    if sys.platform == "win32":
+        return "antigravity.exe" in _run(["tasklist", "/FI", "IMAGENAME eq Antigravity.exe", "/NH"])[1].lower()
+    return False
+
+
+def _server_entry(path):
+    return _read_json(path).get("mcpServers", {}).get(SERVER) if path.exists() else None
+
+
+def _connect(path, bdir, out):
+    old = _server_entry(path)
+    if old is not None and old != mcp_entry():
+        out.append("warning: replaced an existing \"%s\" server in %s: %s (a copy of the file is in %s)"
+                   % (SERVER, path, json.dumps(old, ensure_ascii=False), bdir / path.name))
+    if set_json_key(path, ["mcpServers", SERVER], mcp_entry(), bdir):
+        out.append("connected the tracker in %s" % path)
+
+
+def _check_json(*targets):
+    for path in targets:
+        _read_json(path)   # malformed or not an object: stop before anything is written
+
+
+def setup(tool, remove=False, force=False):
+    """Set up (or with remove=True undo) one tool. Returns lines to print."""
+    if tool not in TOOLS:
+        raise TrackerError("unknown tool %s; choose one of: %s" % (tool, ", ".join(TOOLS)))
+    if tool == "antigravity" and not force and antigravity_running():
+        raise TrackerError("Antigravity is open and may overwrite its settings while running: quit Antigravity "
+                           "(all windows) and run this again, or pass --force")
+    p, bdir, out = _paths(), new_backup_dir(tool), []
+    if remove:
+        if tool not in load_state():
+            return ["%s: nothing to remove" % tool]
+        if tool == "claude-code":
+            drop_block(p["claude_md"], bdir)
+            remove_from_json_list(p["claude_settings"], ["permissions", "allow"], CLAUDE_GRANT, bdir)
+        elif tool == "cursor":
+            del_json_key(p["cursor_mcp"], ["mcpServers", SERVER], bdir)
+        else:
+            del_json_key(p["ag_mcp"], ["mcpServers", SERVER], bdir)
+            remove_from_json_list(p["ag_config"], GRANTS_KEYS, ANTIGRAVITY_GRANT, bdir)
+            drop_block(p["ag_rules"], bdir)
+        return finish_remove(tool) + ["%s: removed" % tool]
+
+    if tool == "claude-code":
+        _check_json(p["claude_settings"])
+        if put_block(p["claude_md"], rules("cli"), bdir):
+            out.append("wrote the tracker rules into %s" % p["claude_md"])
+        if add_to_json_list(p["claude_settings"], ["permissions", "allow"], CLAUDE_GRANT, bdir):
+            out.append("allowed the tracker command without prompts (%s in %s)" % (CLAUDE_GRANT, p["claude_settings"]))
+        if shutil.which("claude") is None:
+            out.append("note: Claude Code wasn't found on this computer; the rules were written anyway and take effect once it is installed")
+        out.append("Claude Code in the terminal, the IDE extensions and the desktop app's local sessions use these. "
+                   "Cloud sessions run elsewhere and can't reach this computer's tracker.")
+    elif tool == "cursor":
+        _check_json(p["cursor_mcp"])
+        _connect(p["cursor_mcp"], bdir, out)
+        out += ["", "One step left (Cursor keeps its global rules in its settings, not in a file):",
+                "open Cursor → Settings → Rules → User Rules, and paste this text:", "",
+                rules("mcp").rstrip("\n"), "",
+                "The first time an agent uses the tracker, Cursor asks once: click Allow (it remembers)."]
+    else:
+        _check_json(p["ag_mcp"], p["ag_config"])
+        _connect(p["ag_mcp"], bdir, out)
+        if add_to_json_list(p["ag_config"], GRANTS_KEYS, ANTIGRAVITY_GRANT, bdir):
+            out.append("allowed the tracker tools without prompts (%s in %s)" % (ANTIGRAVITY_GRANT, p["ag_config"]))
+        if put_block(p["ag_rules"], rules("mcp"), bdir):
+            out.append("wrote the tracker rules into %s" % p["ag_rules"])
+    if not out:
+        out.append("%s: already set up, nothing changed" % tool)
+    return ["%s: set up" % tool] + out + ["Undo with: tracker setup %s --remove" % tool]
+
+
+def _is_set_up(tool):
+    p = _paths()
+    try:
+        if tool == "claude-code":
+            return p["claude_md"].exists() and _span(p["claude_md"].read_text(encoding="utf-8")) is not None
+        return _server_entry(p["cursor_mcp"] if tool == "cursor" else p["ag_mcp"]) is not None
+    except TrackerError:
+        return False
+
+
+def status():
+    lines = ["%s: %s" % (t, "set up" if _is_set_up(t) else "not set up") for t in TOOLS]
+    return lines + ["", "Set one up with: tracker setup <%s>   (undo: --remove)" % "|".join(TOOLS)]

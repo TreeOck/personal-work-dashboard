@@ -6,7 +6,7 @@ import webbrowser
 from datetime import date, datetime
 from pathlib import Path
 
-from . import __version__, build, config, inks, locate, mcp_server, paths, scan, schedule, server, setup, summarise, todo
+from . import __version__, agent_setup, build, config, inks, locate, mcp_server, paths, scan, schedule, server, setup, summarise, todo
 from .errors import TrackerError
 
 NO_CONFIG_NEEDED = ("init", "migrate", "mcp")   # mcp reports a missing config per tool call instead
@@ -31,6 +31,12 @@ def build_parser():
     p = sub.add_parser("pause"); p.add_argument("id"); p.add_argument("reason", nargs="?", default="")
     n = sub.add_parser("note"); n.add_argument("id"); n.add_argument("text")
     sub.add_parser("todo").add_argument("--all", action="store_true")
+    st = sub.add_parser("setup", help="connect Claude Code, Cursor or Antigravity to the tracker (no tool: show what's set up)")
+    st.add_argument("tool", nargs="?", choices=agent_setup.TOOLS); st.add_argument("--remove", action="store_true", help="undo the setup")
+    st.add_argument("--force", action="store_true", help="don't refuse while Antigravity is open")
+    sm = st.add_mutually_exclusive_group()
+    sm.add_argument("--summaries", dest="summaries", action="store_true", default=None, help="also use this tool for daily summaries, without asking")
+    sm.add_argument("--no-summaries", dest="summaries", action="store_false", help="don't ask about summaries")
     sub.add_parser("mcp", help="run the MCP server on stdin/stdout (started by your AI app, not by you)")
     sub.add_parser("open", help="open the dashboard (through the edit server)")
     sub.add_parser("serve", help="run the edit server in the foreground")
@@ -150,6 +156,8 @@ def dispatch(args):
         print(todo.fmt(todo.note(args.id, args.text)))
     elif c == "todo":
         print("\n".join(todo.fmt(i) for i in todo.list_items(args.all)) or "no open tasks")
+    elif c == "setup":
+        print("\n".join(agent_setup.setup(args.tool, args.remove, args.force) if args.tool else agent_setup.status()))
     elif c == "mcp":
         mcp_server.serve(sys.stdin, sys.stdout)
     elif c in (None, "open"):

@@ -20,7 +20,7 @@ tracker = "personal_tracker.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-personal_tracker = ["templates/*.html", "data/*.json"]
+personal_tracker = ["templates/*.html", "templates/*.md", "data/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
