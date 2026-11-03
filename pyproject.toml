@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "personal-work-dashboard"
-version = "0.8.0"
+version = "0.9.0"
 description = "A local day / week / month view of your own git commits, plus a current-tasks board."
 readme = "README.md"
 requires-python = ">=3.11"

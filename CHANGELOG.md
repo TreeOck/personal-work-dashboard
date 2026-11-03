@@ -2,6 +2,19 @@
 
 Versions follow `pyproject.toml` (the only place the version is written). Before 1.0 anything may still change.
 
+## 0.9.0 – 2026-11-03
+
+AI tools other than Claude can keep the tracker in sync.
+
+### Added
+- `tracker mcp`: a stdio MCP server with seven tools (`tracker_todo`, `tracker_add`, `tracker_start`, `tracker_note`, `tracker_pause`, `tracker_done`, `tracker_drop`); `tracker_add` works out project and repo from the agent's workspace folder. See `docs/api/mcp.md`.
+- `tracker setup claude-code | cursor | antigravity [--remove]`: writes the rules, the MCP connection and the no-prompt permissions into that tool's own files, backed up first and fully undoable; asks whether the tool should also write the daily summaries. See `docs/operations/agent-setup.md`.
+- `tracker add --path <folder>`: project and repo from a folder.
+- Config `summariser_input` (`"stdin"` or `"agy-stream-json"` for Antigravity's `agy`).
+
+### Changed
+- The summariser runs in an empty folder inside the data folder (`summariser/`).
+
 ## 0.8.0 – 2026-10-23
 
 First installable version: the scripts are now a Python package that runs on macOS and Windows (Linux is tested in CI).

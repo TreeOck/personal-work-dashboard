@@ -71,7 +71,18 @@ Other commands: `scan [--days N] [--since DATE]`, `summarise [--backfill-threads
 - **Keys:** `c` `d` `w` `m` switch views, `←` `→` change period, `/` search, `n` new task (when editable), `Esc` close / clear. Search matches task ids too: typing `t-0027` shows that card (from any view), and while searching the Done log covers every finished task, not just the last 7 days.
 - A *project* is a top-level folder under `root`, and a *repo* is a git repo inside it, up to 3 levels deep.
 
-To have an AI agent keep the Current board in sync, add a rule to its instructions telling it to run `tracker add` / `start` / `pause` / `done` when work starts, stops and ends (see `docs/operations/install.md`).
+## Use it from your AI agent
+
+One command connects an AI coding tool so it keeps the Current board in sync on its own (adds a task when work starts, notes milestones, pauses, marks it done):
+
+```
+tracker setup claude-code    # rules in ~/.claude/CLAUDE.md, `tracker` allowed without prompts
+tracker setup cursor         # MCP server in ~/.cursor/mcp.json; prints rules to paste into Settings → Rules → User Rules
+tracker setup antigravity    # MCP server, rules in ~/.gemini/AGENTS.md, tools allowed without prompts (quit Antigravity first)
+tracker setup                # what's set up;  add --remove to undo
+```
+
+Setup also asks whether that tool should write your daily summaries (it uses your account's quota). Everything it changes is backed up and undone by `--remove`. Details, and what to expect per tool: [docs/operations/agent-setup.md](docs/operations/agent-setup.md). Other agents can run `tracker mcp` ([docs/api/mcp.md](docs/api/mcp.md)) or follow the rule text in `docs/operations/install.md`.
 
 ## 3D desk (optional showpiece)
 

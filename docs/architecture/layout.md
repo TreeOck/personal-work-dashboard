@@ -10,16 +10,20 @@ inks.py       project -> ink colours         server.py      local edit server (s
 setup.py      init / migrate                 schedule.py    daily refresh (launchd / Task Scheduler / cron line)
 config.py     config.json -> Config          files.py       UTF-8 JSON, atomic replace, exclusive lock
 paths.py      the data folder                errors.py      TrackerError (shown as one line, exit 1)
-templates/dashboard.html     data/inks.json (ink palette, also imported by the desk)
+locate.py     workspace folder -> project/repo
+mcp_server.py `tracker mcp`: stdio MCP server for AI apps (see docs/api/mcp.md)
+agent_setup.py `tracker setup <tool>`: reversible edits of Claude Code / Cursor / Antigravity files (docs/operations/agent-setup.md)
+templates/dashboard.html     templates/rules-cli.md, rules-mcp.md (agent rules)     data/inks.json (ink palette, also imported by the desk)
 ```
 Outside the package: `desk/` (3D desk, TypeScript/three.js, optional, built with `npm run build` into the data folder), `tests/`, `docs/`.
 
 ## Data folder
-`$TRACKER_HOME`, else `~/.personal-tracker` (Windows: `%USERPROFILE%\.personal-tracker`). Files are listed in the README. The CLI never writes outside it, except `tracker schedule` (LaunchAgent / scheduled task) and `tracker migrate` (renames the old files it moved).
+`$TRACKER_HOME`, else `~/.personal-tracker` (Windows: `%USERPROFILE%\.personal-tracker`). Files are listed in the README. The CLI never writes outside it, except `tracker schedule` (LaunchAgent / scheduled task), `tracker migrate` (renames the old files it moved) and `tracker setup` (the AI tool's own config and rules files, backed up first). Agent-related files in it: `mcp.log`, `setup-state.json`, `setup-backups/`, and `summariser/` (the empty working folder the summariser runs in).
 
 ## Processes
 - `tracker <command>`: one short process; it takes `todo.json.lock` for edits and `build.lock` for builds.
 - Edit server: one background process per data folder and version (`server.json` holds its pid and port). It never edits files itself: each request runs `python -m personal_tracker <command>`, so the CLI's lock, git rescan and rebuild apply.
+- MCP server: started by an AI app (`<python> -P -m personal_tracker mcp`), one per app window/session, lives as long as the app keeps its stdin open; it edits in-process through `todo.*`, so it takes the same lock.
 - Daily refresh: the OS scheduler runs `tracker refresh --quiet` (scan, summarise, build; log in `refresh.log`).
 
 ## Where the OS differences live
