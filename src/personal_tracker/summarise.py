@@ -114,7 +114,7 @@ def validate_backfill(assign, tasks, known_threads):
             raise ValueError("thread %r used in two projects" % th)
 
 
-def ask(prompt, argv, input_mode="stdin"):
+def ask(prompt, argv, input_mode="stdin", timeout=None):
     """Run the configured summariser and return its JSON. input_mode "stdin": the prompt on stdin, JSON on stdout.
     "agy-stream-json": Antigravity's agy, which doesn't read a plain prompt from stdin; it gets one
     {"event": "user", ...} line and answers in a stream of JSON events, the last "result" event holding the text.
@@ -130,7 +130,7 @@ def ask(prompt, argv, input_mode="stdin"):
     quiet.mkdir(parents=True, exist_ok=True)
     try:
         r = subprocess.run(cmd, input=stdin, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           timeout=SUMMARISER_TIMEOUT, cwd=quiet, **procs.no_window())
+                           timeout=SUMMARISER_TIMEOUT if timeout is None else timeout, cwd=quiet, **procs.no_window())
     except subprocess.TimeoutExpired as e:
         raise TrackerError("%s timed out after %s s" % (argv[0], int(e.timeout))) from e
     except OSError as e:

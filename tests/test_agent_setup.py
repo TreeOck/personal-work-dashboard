@@ -51,7 +51,7 @@ def test_claude_code_not_installed_still_writes_rules_and_says_so(home, monkeypa
 def test_cursor_setup_prints_paste_instructions(home):
     out = "\n".join(a.setup("cursor"))
     assert _j(home / ".cursor" / "mcp.json") == {"mcpServers": {"tracker": a.mcp_entry()}}
-    assert a.mcp_entry() == {"command": sys.executable, "args": ["-P", "-m", "personal_tracker", "mcp"]}
+    assert {k: a.mcp_entry()[k] for k in ("command", "args")} == {"command": sys.executable, "args": ["-P", "-m", "personal_tracker", "mcp"]}
     assert "Settings → Rules" in out and "User Rules" in out
     assert "tracker_add" in out and "path" in out
     assert "Allow" in out

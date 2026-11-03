@@ -167,7 +167,8 @@ def serve(stdin, stdout):
             continue
         try:
             msg = json.loads(line)
-        except ValueError:
+        except Exception:   # ValueError, and RecursionError for absurdly nested input
+            log("unparseable line (%d chars)" % len(line))
             reply = _error(None, -32700, "parse error")
         else:
             try:

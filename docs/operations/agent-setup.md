@@ -16,10 +16,12 @@ unless `--summaries` is given).
 
 ## What setup changes
 
-Setup only adds or replaces **its own** entries. Everything else in these files is kept (JSON files are rewritten
-with 2-space indentation; text files keep every other byte). Before a file's first change it is copied to
-`<data folder>/setup-backups/<YYYYmmdd-HHMMSS>/<tool>/`, and what was touched is recorded in
-`<data folder>/setup-state.json`. If a JSON file is malformed, setup stops and changes nothing.
+Setup only adds or replaces **its own** entries. Everything else in these files is kept: JSON files keep their
+indentation, `\u` escapes, line endings and final newline; text files keep every other byte and their line endings
+(CRLF stays CRLF). Before a file's first change it is copied to
+`<data folder>/setup-backups/<YYYYmmdd-HHMMSS>/<tool>/`, and `<data folder>/setup-state.json` records which files were
+touched and which entries setup added. Each run is rehearsed in memory first: if any file is malformed JSON, has an
+unexpected shape, isn't UTF-8, or has the begin marker without the end marker, setup stops and **nothing** is written.
 
 | | Claude Code | Cursor | Antigravity |
 |---|---|---|---|
@@ -32,8 +34,9 @@ The rules blocks sit between `<!-- personal-work-dashboard:begin (managed by tra
 `<!-- personal-work-dashboard:end -->`; running setup again replaces the block (edits inside it are overwritten).
 
 The connection is `<this Python> -P -m personal_tracker mcp` by absolute path, because desktop apps don't see your
-shell's PATH. If you reinstall the tracker with a different Python, run setup again. An existing `tracker` server
-entry that points somewhere else is replaced, with a warning naming the backup.
+shell's PATH. If you reinstall the tracker with a different Python, run setup again. When `TRACKER_HOME` is set, the entry also
+passes it on (`"env": {"TRACKER_HOME": …}`), since the apps don't see your shell's environment. An existing `tracker`
+server entry that points somewhere else is replaced, with a warning; `--remove` puts it back.
 
 ### Notes per tool
 
@@ -51,11 +54,13 @@ Setup asks `Use <Tool> to write your daily summaries? It uses your <Tool> accoun
 On yes it checks that the tool's command exists and is signed in with one tiny request; if that fails it says how
 to fix it (`agent login` for Cursor, run `agy` once for Antigravity, `claude` for Claude Code) and leaves the
 summariser as it was. On success it writes `summariser` (program as an absolute path) and `summariser_input` to
-`config.json`; `--remove` puts the previous values back.
+`config.json`; `--remove` puts the previous values back if this tool's summariser is still the one in use (if you
+or another tool's setup changed it since, it is left alone; setups of two tools undo independently).
 
 ## Undo
 
-`tracker setup <tool> --remove` removes setup's entries. A file that is then the same as before setup gets its
+`tracker setup <tool> --remove` removes only the entries setup added (a grant you already had stays) and puts back
+a server entry it replaced. A file that is then the same as before setup gets its
 original bytes back; a file setup created that holds nothing else is deleted; a file you (or the app) changed since
 keeps those changes. Files deleted since setup are skipped. The backups stay in `setup-backups/` until you delete
 them.

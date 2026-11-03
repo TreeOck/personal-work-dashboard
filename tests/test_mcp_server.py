@@ -126,3 +126,8 @@ def test_unexpected_exception_is_logged_not_shown(sandbox):
     replies, _ = _rpc(sandbox, [_call(1, "tracker_todo", {})])
     assert replies[0]["result"]["isError"] and _text(replies[0]).startswith("internal error: ")
     assert "Traceback" in (sandbox.dir / "mcp.log").read_text(encoding="utf-8")
+
+
+def test_deeply_nested_line_does_not_kill_the_server(sandbox):
+    replies, _ = _rpc(sandbox, ["[" * 100000 + "]" * 100000, _req(2, "ping")])
+    assert replies[0]["error"]["code"] == -32700 and replies[-1] == {"jsonrpc": "2.0", "id": 2, "result": {}}
