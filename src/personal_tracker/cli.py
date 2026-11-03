@@ -6,10 +6,10 @@ import webbrowser
 from datetime import date, datetime
 from pathlib import Path
 
-from . import __version__, build, config, inks, locate, paths, scan, schedule, server, setup, summarise, todo
+from . import __version__, build, config, inks, locate, mcp_server, paths, scan, schedule, server, setup, summarise, todo
 from .errors import TrackerError
 
-NO_CONFIG_NEEDED = ("init", "migrate")
+NO_CONFIG_NEEDED = ("init", "migrate", "mcp")   # mcp reports a missing config per tool call instead
 
 
 def build_parser():
@@ -31,6 +31,7 @@ def build_parser():
     p = sub.add_parser("pause"); p.add_argument("id"); p.add_argument("reason", nargs="?", default="")
     n = sub.add_parser("note"); n.add_argument("id"); n.add_argument("text")
     sub.add_parser("todo").add_argument("--all", action="store_true")
+    sub.add_parser("mcp", help="run the MCP server on stdin/stdout (started by your AI app, not by you)")
     sub.add_parser("open", help="open the dashboard (through the edit server)")
     sub.add_parser("serve", help="run the edit server in the foreground")
     d = sub.add_parser("desk", help="open the 3D desk"); d.add_argument("refresh", nargs="?", choices=["refresh"])
@@ -149,6 +150,8 @@ def dispatch(args):
         print(todo.fmt(todo.note(args.id, args.text)))
     elif c == "todo":
         print("\n".join(todo.fmt(i) for i in todo.list_items(args.all)) or "no open tasks")
+    elif c == "mcp":
+        mcp_server.serve(sys.stdin, sys.stdout)
     elif c in (None, "open"):
         server.open_dashboard()
     elif c == "serve":
