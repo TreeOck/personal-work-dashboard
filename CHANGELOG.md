@@ -14,6 +14,7 @@ AI tools other than Claude can keep the tracker in sync.
 
 ### Changed
 - The summariser runs in an empty folder inside the data folder (`summariser/`).
+- A summariser that times out is stopped together with every program it started (on Windows the `.cmd` shims of `agent` / `agy` otherwise left the real program running and the timeout never returned).
 
 ## 0.8.0 – 2026-10-23
 

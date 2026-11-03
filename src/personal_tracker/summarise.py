@@ -129,8 +129,7 @@ def ask(prompt, argv, input_mode="stdin", timeout=None):
     quiet = paths.file("summariser")
     quiet.mkdir(parents=True, exist_ok=True)
     try:
-        r = subprocess.run(cmd, input=stdin, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           timeout=SUMMARISER_TIMEOUT if timeout is None else timeout, cwd=quiet, **procs.no_window())
+        r = procs.run_tree(cmd, stdin, SUMMARISER_TIMEOUT if timeout is None else timeout, cwd=quiet)
     except subprocess.TimeoutExpired as e:
         raise TrackerError("%s timed out after %s s" % (argv[0], int(e.timeout))) from e
     except OSError as e:
