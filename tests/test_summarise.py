@@ -217,3 +217,55 @@ def test_summariser_and_git_calls_ask_for_no_console_window(monkeypatch):
     scan.git(".", "status")
     summarise.ask("prompt", [sys.executable, "-c", "pass"])
     assert [k.get("creationflags") for k in seen] == [0, 0]
+
+
+def _script(tmp_path, body):
+    path = tmp_path / "fake_agy.py"
+    path.write_text(body, encoding="utf-8")
+    return [sys.executable, str(path)]
+
+
+AGY_OK = """import json, sys
+sys.stdout.reconfigure(encoding="utf-8")
+line = sys.stdin.buffer.readline().decode("utf-8")
+msg = json.loads(line)
+assert msg["event"] == "user" and "हिंदी" in msg["message"]["content"], msg
+print(json.dumps({"event": "init", "session": "x"}))
+print("not json at all")
+print(json.dumps({"event": "step_update", "text": "thinking"}))
+print(json.dumps({"event": "result", "result": {"status": "SUCCESS", "response": "```json\\n{\\"tasks\\": []}\\n```"}}))
+"""
+
+
+def test_agy_stream_json_mode(tmp_path):
+    assert summarise.ask("summarise हिंदी", _script(tmp_path, AGY_OK), "agy-stream-json") == {"tasks": []}
+
+
+@pytest.mark.parametrize("events", [
+    [{"event": "result", "result": {"status": "ERROR", "response": "quota exhausted"}}],
+    [{"event": "init"}],
+    [{"event": "result", "result": "oops"}],
+])
+def test_agy_mode_failure_status_is_a_tracker_error(tmp_path, events):
+    body = "import json, sys\nsys.stdin.read()\n" + "".join("print(json.dumps(%r))\n" % e for e in events)
+    with pytest.raises(TrackerError, match="agy|result"):
+        summarise.ask("p", _script(tmp_path, body), "agy-stream-json")
+
+
+def test_summariser_runs_in_the_quiet_folder(tmp_path):
+    body = "import json, os, sys\nsys.stdin.read()\nprint(json.dumps({'cwd': os.getcwd(), 'files': os.listdir('.')}))\n"
+    got = summarise.ask("p", _script(tmp_path, body))
+    assert os.path.samefile(got["cwd"], os.path.join(os.environ["TRACKER_HOME"], "summariser")) and got["files"] == []
+
+
+def test_bad_summariser_input_rejected(sandbox, monkeypatch):
+    cfg = json.loads((sandbox.dir / "config.json").read_text(encoding="utf-8"))
+    cfg["summariser_input"] = "argv"
+    (sandbox.dir / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
+    monkeypatch.setenv("TRACKER_HOME", str(sandbox.dir))
+    from personal_tracker import config
+    with pytest.raises(TrackerError, match="summariser_input"):
+        config.load()
+    cfg["summariser_input"] = "agy-stream-json"
+    (sandbox.dir / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
+    assert config.load().summariser_input == "agy-stream-json"

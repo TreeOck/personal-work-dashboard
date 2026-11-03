@@ -8,6 +8,12 @@ import pytest
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+@pytest.fixture(autouse=True)
+def _never_the_real_data_folder(tmp_path, monkeypatch):
+    """In-process code must never touch the owner's ~/.personal-tracker, even in tests that don't use `sandbox`."""
+    monkeypatch.setenv("TRACKER_HOME", str(tmp_path / "default-data"))
+
+
 @pytest.fixture
 def sandbox(tmp_path):
     """A throwaway data folder (TRACKER_HOME) with empty data and a root folder containing no repos.
