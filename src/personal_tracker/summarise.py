@@ -114,25 +114,51 @@ def validate_backfill(assign, tasks, known_threads):
             raise ValueError("thread %r used in two projects" % th)
 
 
-def ask(prompt, argv):
-    """Run the configured summariser: prompt on stdin, JSON on stdout."""
+def ask(prompt, argv, input_mode="stdin", timeout=None):
+    """Run the configured summariser and return its JSON. input_mode "stdin": the prompt on stdin, JSON on stdout.
+    "agy-stream-json": Antigravity's agy, which doesn't read a plain prompt from stdin; it gets one
+    {"event": "user", ...} line and answers in a stream of JSON events, the last "result" event holding the text.
+    It runs in an empty folder inside the data folder, so a read-only agent has nothing to look at."""
     cmd = resolve_command(argv)
     if cmd is None:
         raise TrackerError("summariser command not found: %s (set \"summariser\" in config.json)" % argv[0])
+    if input_mode == "agy-stream-json":
+        stdin = json.dumps({"event": "user", "message": {"content": prompt}}, ensure_ascii=False) + "\n"
+    else:
+        stdin = prompt
+    quiet = paths.file("summariser")
+    quiet.mkdir(parents=True, exist_ok=True)
     try:
-        r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           timeout=SUMMARISER_TIMEOUT, **procs.no_window())
+        r = procs.run_tree(cmd, stdin, SUMMARISER_TIMEOUT if timeout is None else timeout, cwd=quiet)
     except subprocess.TimeoutExpired as e:
         raise TrackerError("%s timed out after %s s" % (argv[0], int(e.timeout))) from e
     except OSError as e:
         raise TrackerError("couldn't run %s: %s" % (argv[0], e)) from e
     if r.returncode != 0:
         raise TrackerError("%s failed (%d): stderr=%s stdout=%s" % (argv[0], r.returncode, r.stderr.strip()[:500], r.stdout.strip()[:500]))
-    txt = re.sub(r"^```(?:json)?\s*|\s*```$", "", r.stdout.strip())
+    out = _stream_json_response(argv[0], r.stdout) if input_mode == "agy-stream-json" else r.stdout
+    txt = re.sub(r"^```(?:json)?\s*|\s*```$", "", out.strip())
     try:
         return json.loads(txt)
     except Exception as e:
         raise TrackerError("could not parse %s output as JSON: %s\n%s" % (argv[0], e, txt[:500])) from e
+
+
+def _stream_json_response(name, stdout):
+    """The text of the last "result" event in agy's stream-json output; anything but status SUCCESS is an error."""
+    result = None
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(event, dict) and event.get("event") == "result":
+            result = event.get("result")
+    if not isinstance(result, dict):
+        raise TrackerError("%s gave no result event: %s" % (name, stdout.strip()[-500:]))
+    if result.get("status") != "SUCCESS" or not isinstance(result.get("response"), str):
+        raise TrackerError("%s result status %s: %s" % (name, result.get("status"), str(result.get("response"))[:500]))
+    return result["response"]
 
 
 def threads_hint(tasks):
@@ -179,7 +205,7 @@ Rules:
 Existing threads by project:
 """ + threads_hint(doc["tasks"]) + "\n\nCommits:\n" + "\n".join(lines)
     try:
-        new = ask(prompt, cfg.summariser)["tasks"]
+        new = ask(prompt, cfg.summariser, cfg.summariser_input)["tasks"]
         validate_new_tasks(new, orphans, thread_projects(doc["tasks"]), tz)
     except (KeyError, TypeError, ValueError) as e:
         raise TrackerError("rejected claude output: %s" % e) from e
@@ -209,7 +235,7 @@ Output ONLY a JSON object mapping every task id to its thread name, no prose, no
 Existing threads by project:
 """ + threads_hint(doc["tasks"]) + "\n\nTasks:\n" + rows
     try:
-        assign = ask(prompt, cfg.summariser)["threads"]
+        assign = ask(prompt, cfg.summariser, cfg.summariser_input)["threads"]
         validate_backfill(assign, doc["tasks"], thread_projects(doc["tasks"]))
     except (KeyError, TypeError, ValueError) as e:
         raise TrackerError("rejected claude output: %s" % e) from e

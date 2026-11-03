@@ -6,10 +6,10 @@ import webbrowser
 from datetime import date, datetime
 from pathlib import Path
 
-from . import __version__, build, config, inks, paths, scan, schedule, server, setup, summarise, todo
+from . import __version__, agent_setup, build, config, inks, locate, mcp_server, paths, scan, schedule, server, setup, summarise, todo
 from .errors import TrackerError
 
-NO_CONFIG_NEEDED = ("init", "migrate")
+NO_CONFIG_NEEDED = ("init", "migrate", "mcp")   # mcp reports a missing config per tool call instead
 
 
 def build_parser():
@@ -25,11 +25,19 @@ def build_parser():
     m.add_argument("--from", dest="src", help="folder holding the old config.json / todo.json (default: this checkout)")
     a = sub.add_parser("add", help="add a task; prints its id")
     a.add_argument("title"); a.add_argument("-p", "--project"); a.add_argument("-r", "--repo"); a.add_argument("--plan")
+    a.add_argument("--path", help="your workspace folder; fills in project and repo unless -p / -r are given")
     for c in ("start", "done", "drop"):
         sub.add_parser(c).add_argument("id")
     p = sub.add_parser("pause"); p.add_argument("id"); p.add_argument("reason", nargs="?", default="")
     n = sub.add_parser("note"); n.add_argument("id"); n.add_argument("text")
     sub.add_parser("todo").add_argument("--all", action="store_true")
+    st = sub.add_parser("setup", help="connect Claude Code, Cursor or Antigravity to the tracker (no tool: show what's set up)")
+    st.add_argument("tool", nargs="?", choices=agent_setup.TOOLS); st.add_argument("--remove", action="store_true", help="undo the setup")
+    st.add_argument("--force", action="store_true", help="don't refuse while Antigravity is open")
+    sm = st.add_mutually_exclusive_group()
+    sm.add_argument("--summaries", dest="summaries", action="store_true", default=None, help="also use this tool for daily summaries, without asking")
+    sm.add_argument("--no-summaries", dest="summaries", action="store_false", help="don't ask about summaries")
+    sub.add_parser("mcp", help="run the MCP server on stdin/stdout (started by your AI app, not by you)")
     sub.add_parser("open", help="open the dashboard (through the edit server)")
     sub.add_parser("serve", help="run the edit server in the foreground")
     d = sub.add_parser("desk", help="open the 3D desk"); d.add_argument("refresh", nargs="?", choices=["refresh"])
@@ -132,7 +140,11 @@ def dispatch(args):
     elif c == "migrate":
         run_migrate(args)
     elif c == "add":
-        print(todo.add(args.title, args.project, args.repo, args.plan)["id"])
+        project, repo = args.project, args.repo
+        if args.path:
+            p, r = locate.project_repo_for(args.path, config.load().root)
+            project, repo = project or p, repo or r
+        print(todo.add(args.title, project, repo, args.plan)["id"])
     elif c in ("start", "done", "drop"):
         it, changed = todo.set_status(args.id, c)
         new = {"start": "in_progress", "done": "done", "drop": "dropped"}[c]
@@ -144,6 +156,15 @@ def dispatch(args):
         print(todo.fmt(todo.note(args.id, args.text)))
     elif c == "todo":
         print("\n".join(todo.fmt(i) for i in todo.list_items(args.all)) or "no open tasks")
+    elif c == "setup":
+        if not args.tool:
+            print("\n".join(agent_setup.status()))
+        else:
+            print("\n".join(agent_setup.setup(args.tool, args.remove, args.force)))
+            if not args.remove:
+                print("\n".join(agent_setup.offer_summaries(args.tool, args.summaries)) or "summaries: unchanged")
+    elif c == "mcp":
+        mcp_server.serve(sys.stdin, sys.stdout)
     elif c in (None, "open"):
         server.open_dashboard()
     elif c == "serve":

@@ -69,7 +69,7 @@ def test_build_inlines_timezone_and_version(site):
     (site.dir / "config.json").write_text(json.dumps(cfg))
     assert site().returncode == 0
     html = (site.dir / "dashboard.html").read_text(encoding="utf-8")
-    assert '"timezone": "Asia/Kolkata"' in html and '"version": "0.8.0"' in html
+    assert '"timezone": "Asia/Kolkata"' in html and '"version": "0.9.0"' in html
     assert "const TZ = DATA.timezone" in html and 'timeZone: "Asia/Kolkata"' not in html
 
 

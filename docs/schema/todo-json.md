@@ -31,6 +31,7 @@ In the data folder (`$TRACKER_HOME`, default `~/.personal-tracker`). Written by 
 | `root` | string | Folder containing your git repos; `~` is expanded when read |
 | `author_emails` | list of strings | At least one; every email you commit as |
 | `timezone` | IANA name or `null` | Day boundaries (Python) and display (page). `null` = this computer's zone. Invalid names are rejected |
-| `summariser` | list of strings or `null` | Command + arguments; prompt on stdin (UTF-8), JSON on stdout (UTF-8). Resolved with `shutil.which`. `null` = no summaries |
+| `summariser` | list of strings or `null` | Command + arguments; prompt on stdin (UTF-8), JSON on stdout (UTF-8). Resolved with `shutil.which`. `null` = no summaries. Runs with its working folder set to the empty `<data folder>/summariser/` |
+| `summariser_input` | string, optional | How the prompt reaches the summariser: `"stdin"` (default) or `"agy-stream-json"` (Antigravity's `agy`: one `{"event":"user","message":{"content":…}}` line on stdin; the answer is the last `result` event's `result.response`, which must have `status` `"SUCCESS"`). Anything else is an error |
 
 Migration: `tracker migrate` copies an old checkout's `config.json`, adding `"timezone": "Asia/Kolkata"` and the Claude summariser when the keys are missing (what the old scripts did implicitly).

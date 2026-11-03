@@ -13,6 +13,7 @@ class Config:
     author_emails: list[str]           # every email you commit as
     timezone: str | None = None        # IANA name for day boundaries; None = this computer's zone
     summariser: list[str] | None = None  # argv of a command: prompt on stdin, JSON on stdout; None = no summaries
+    summariser_input: str = "stdin"      # how the prompt is passed: "stdin" or "agy-stream-json" (Antigravity's agy)
 
 
 def check_timezone(name: str) -> str:
@@ -39,4 +40,8 @@ def load() -> Config:
     summariser = raw.get("summariser") or None
     if summariser is not None and not (isinstance(summariser, list) and all(isinstance(a, str) for a in summariser)):
         raise TrackerError("%s: summariser must be a list of strings (a command and its arguments)" % path)
-    return Config(root=root, author_emails=emails, timezone=check_timezone(tz) if tz else None, summariser=summariser)
+    mode = raw.get("summariser_input") or "stdin"
+    if mode not in ("stdin", "agy-stream-json"):
+        raise TrackerError("%s: summariser_input must be \"stdin\" or \"agy-stream-json\", not %r" % (path, mode))
+    return Config(root=root, author_emails=emails, timezone=check_timezone(tz) if tz else None, summariser=summariser,
+                  summariser_input=mode)

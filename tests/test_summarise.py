@@ -214,6 +214,86 @@ def test_summariser_and_git_calls_ask_for_no_console_window(monkeypatch):
     monkeypatch.setattr(summarise.procs, "no_window", lambda *a: {"creationflags": 0})
     monkeypatch.setattr(scan.procs, "no_window", lambda *a: {"creationflags": 0})
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: (seen.append(k), SimpleNamespace(returncode=0, stdout="{}", stderr=""))[1])
+
+    class FakePopen:   # the summariser is started with Popen (procs.run_tree), so it can be stopped with its children
+        def __init__(self, *a, **k):
+            seen.append(k)
+            self.pid, self.returncode = 1, 0
+
+        def communicate(self, *a, **k):
+            return "{}", ""
+    monkeypatch.setattr(subprocess, "Popen", FakePopen)
     scan.git(".", "status")
     summarise.ask("prompt", [sys.executable, "-c", "pass"])
     assert [k.get("creationflags") for k in seen] == [0, 0]
+
+
+def _script(tmp_path, body):
+    path = tmp_path / "fake_agy.py"
+    path.write_text(body, encoding="utf-8")
+    return [sys.executable, str(path)]
+
+
+AGY_OK = """import json, sys
+sys.stdout.reconfigure(encoding="utf-8")
+line = sys.stdin.buffer.readline().decode("utf-8")
+msg = json.loads(line)
+assert msg["event"] == "user" and "हिंदी" in msg["message"]["content"], msg
+print(json.dumps({"event": "init", "session": "x"}))
+print("not json at all")
+print(json.dumps({"event": "step_update", "text": "thinking"}))
+print(json.dumps({"event": "result", "result": {"status": "SUCCESS", "response": "```json\\n{\\"tasks\\": []}\\n```"}}))
+"""
+
+
+def test_agy_stream_json_mode(tmp_path):
+    assert summarise.ask("summarise हिंदी", _script(tmp_path, AGY_OK), "agy-stream-json") == {"tasks": []}
+
+
+@pytest.mark.parametrize("events", [
+    [{"event": "result", "result": {"status": "ERROR", "response": "quota exhausted"}}],
+    [{"event": "init"}],
+    [{"event": "result", "result": "oops"}],
+])
+def test_agy_mode_failure_status_is_a_tracker_error(tmp_path, events):
+    body = "import json, sys\nsys.stdin.read()\n" + "".join("print(json.dumps(%r))\n" % e for e in events)
+    with pytest.raises(TrackerError, match="agy|result"):
+        summarise.ask("p", _script(tmp_path, body), "agy-stream-json")
+
+
+def test_summariser_runs_in_the_quiet_folder(tmp_path):
+    body = "import json, os, sys\nsys.stdin.read()\nprint(json.dumps({'cwd': os.getcwd(), 'files': os.listdir('.')}))\n"
+    got = summarise.ask("p", _script(tmp_path, body))
+    assert os.path.samefile(got["cwd"], os.path.join(os.environ["TRACKER_HOME"], "summariser")) and got["files"] == []
+
+
+def test_bad_summariser_input_rejected(sandbox, monkeypatch):
+    cfg = json.loads((sandbox.dir / "config.json").read_text(encoding="utf-8"))
+    cfg["summariser_input"] = "argv"
+    (sandbox.dir / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
+    monkeypatch.setenv("TRACKER_HOME", str(sandbox.dir))
+    from personal_tracker import config
+    with pytest.raises(TrackerError, match="summariser_input"):
+        config.load()
+    cfg["summariser_input"] = "agy-stream-json"
+    (sandbox.dir / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
+    assert config.load().summariser_input == "agy-stream-json"
+
+
+def test_a_hung_summariser_is_stopped_with_its_child_processes(tmp_path, monkeypatch):
+    # Windows runs agent/agy through a .cmd shim: killing only the shim leaves the real program holding stdout open,
+    # so the timeout never returned. A summariser that starts its own child process shows the same on every OS.
+    import time as _time
+    script = tmp_path / "parent.py"
+    marker = tmp_path / "child-still-alive"
+    script.write_text("import subprocess, sys, time\n"
+                      "subprocess.Popen([sys.executable, '-c', 'import sys, time, pathlib; time.sleep(3); "
+                      "pathlib.Path(sys.argv[1]).write_text(chr(120))', sys.argv[1]])\n"
+                      "time.sleep(30)\n", encoding="utf-8")
+    monkeypatch.setattr(summarise, "SUMMARISER_TIMEOUT", 1)
+    t = _time.monotonic()
+    with pytest.raises(TrackerError, match="timed out"):
+        summarise.ask("prompt", [sys.executable, str(script), str(marker)])
+    assert _time.monotonic() - t < 15
+    _time.sleep(4)
+    assert not marker.exists(), "the summariser's child process was left running"
