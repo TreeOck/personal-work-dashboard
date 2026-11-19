@@ -96,3 +96,18 @@ def test_build_writes_linked_and_branch_effective(site):
     (it,) = json.loads((site.dir / "dev-data.json").read_text(encoding="utf-8"))["todo"]
     assert it["linked"] == ["alpha/alpha-be:" + "a" * 40]   # the moved-away commit is not linked
     assert it["branch_effective"] == {"repo": "alpha/alpha-be", "branch": "feat/z", "source": "inferred"}
+
+
+def test_build_embeds_branch_list_per_repo(site):
+    commits = json.loads((site.dir / "commits.json").read_text())
+    c = commits["commits"][0]
+    c["branch"] = "feat/z"
+    commits["commits"] += [dict(c, sha="b" * 40, date="2026-10-14T10:00:00+05:30"),
+                           dict(c, sha="c" * 40, branch=None), dict(c, sha="d" * 40, branch="feat/q", repo_path="alpha/other")]
+    (site.dir / "commits.json").write_text(json.dumps(commits))
+    assert site().returncode == 0
+    got = json.loads((site.dir / "dev-data.json").read_text(encoding="utf-8"))["branches"]
+    assert got == {"alpha/alpha-be": [{"branch": "feat/z", "first": "2026-10-12T10:00:00+05:30",
+                                       "last": "2026-10-14T10:00:00+05:30", "count": 2}],
+                   "alpha/other": [{"branch": "feat/q", "first": "2026-10-12T10:00:00+05:30",
+                                    "last": "2026-10-12T10:00:00+05:30", "count": 1}]}

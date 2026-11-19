@@ -13,6 +13,18 @@ from .errors import TrackerError
 from .links import assign, branch_info
 
 
+def _branch_list(commits):
+    """repo path -> the branches its commits were made on, with first/last commit date and count (for the page's
+    branch picker)."""
+    seen = {}
+    for c in commits:
+        if c.get("branch") and c.get("repo_path"):
+            b = seen.setdefault(c["repo_path"], {}).setdefault(c["branch"], {"branch": c["branch"], "first": c["date"],
+                                                                             "last": c["date"], "count": 0})
+            b["first"], b["last"], b["count"] = min(b["first"], c["date"]), max(b["last"], c["date"]), b["count"] + 1
+    return {rp: sorted(bs.values(), key=lambda b: b["last"], reverse=True) for rp, bs in sorted(seen.items())}
+
+
 def _render(html, blob, name):
     assert "/*__DATA__*/null" in html, "%s has no data slot" % name
     out = paths.file(name)
@@ -40,6 +52,7 @@ def build():
         for it in data["todo"]:
             it["linked"] = [c["repo_path"] + ":" + c["sha"] for c in linked[it["id"]]]
             it["branch_effective"] = branches[it["id"]]
+        data["branches"] = _branch_list(data["commits"])
         projects = {c["project"] for c in data["commits"]} | {t["project"] for t in data["tasks"]} | {i["project"] for i in data["todo"] if i.get("project")}
         try:   # inks only colour the desk: a broken ink file must never stop the dashboard from building
             _assigned = inks.assign(sorted(projects), inks.load_assignments())
