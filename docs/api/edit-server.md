@@ -52,7 +52,7 @@ Headers: `Content-Type: application/json`, `X-Tracker-Token`, same-origin `Origi
 | `pause` | `id`, `text` (optional reason, ≤2000) | `tracker pause -- id [reason]` |
 | `done` / `drop` | `id` | `tracker done|drop -- id` |
 | `note` | `id`, `text` (required, ≤2000) | `tracker note -- id text` |
-| `branch` | `id`, `branch` (a name matching `[\w./-]`, not starting with `-`, no `..`; or `"none"` = dates only; or `"auto"`), optional `repo` (repo path under the root) | `tracker branch [--repo R] -- id branch` / `tracker branch --none\|--auto -- id` |
+| `branch` | `id`, `branch` (a name matching `[\w./-]`, not starting with `-`, no `..`; or `"none"` = no branch; or `"auto"`), optional `repo` (repo path under the root) | `tracker branch [--repo R] -- id branch` / `tracker branch --none\|--auto -- id` |
 | `move` | `sha` (4–40 hex chars), `ids` (list of task ids, or `"none"`, or `"auto"`); no `id` | `tracker move -- sha id…` / `tracker move --none\|--auto -- sha` |
 
 `id` must match `t-` followed by 4 or more digits. The command takes its file lock, writes and rebuilds the page

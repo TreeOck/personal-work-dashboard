@@ -731,14 +731,14 @@ function branchChoices(i) {   // branches of the task's repo(s) used within a we
 }
 function branchHTML(i) {
   const e = i.branch_effective;
-  const shown = e ? `<code>${esc(e.branch)}</code><span class="src">${SOURCE[e.source]}</span>` : `none<span class="src">linked by dates</span>`;
+  const shown = e ? `<code>${esc(e.branch)}</code><span class="src">${SOURCE[e.source]}</span>` : `none<span class="src">gets its dates' commits that no other task claims</span>`;
   if (!EDIT) return shown;
   const manual = i.branch_source === "manual", many = !i.repo;
   const opt = (v, label, sel) => `<option value="${esc(v)}"${sel ? " selected" : ""}>${esc(label)}</option>`;
   const auto = opt("auto", "Automatic" + (!manual && e ? ` (${e.branch})` : !manual ? " (none found)" : ""), !manual);
   const opts = branchChoices(i).map(b => opt(b.rp + "|" + b.branch, (many ? b.rp.split("/").pop() + " · " : "") + `${b.branch} · ${pl(b.count, "commit")}`,
     manual && i.branch === b.branch && i.branch_repo === b.rp)).join("");
-  return `<select class="pick" data-branch-for="${esc(i.id)}" aria-label="Branch for ${esc(i.id)}">${auto}${opts}${opt("none", "None (use the dates)", manual && !i.branch)}</select>`;
+  return `<select class="pick" data-branch-for="${esc(i.id)}" aria-label="Branch for ${esc(i.id)}">${auto}${opts}${opt("none", "No branch (only commits no other task claims)", manual && !i.branch)}</select>`;
 }
 function moveForm(c, owner) {
   const d30 = new Date(Date.now() - 30 * 864e5).toISOString(), others = todo.filter(t => t.id !== owner.id);

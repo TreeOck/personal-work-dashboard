@@ -53,7 +53,7 @@ TOOLS = [
 TOOLS += [
     {"name": "tracker_branch",
      "description": "Correction, rarely needed: set which git branch a tracker task's commits come from, when the "
-                    "automatic choice is wrong. branch \"none\" links by dates only; \"auto\" goes back to automatic.",
+                    "automatic choice is wrong. branch \"none\" = no branch (only commits in its dates that no other task claims); \"auto\" goes back to automatic.",
      "inputSchema": {"type": "object", "properties": dict(_ID,
          branch={"type": "string", "description": "Branch name, \"none\" or \"auto\"."},
          repo={"type": "string", "description": "Repo path under the root (only needed for a task without a repo)."}),
@@ -126,6 +126,8 @@ def _run_tool(name, args):
         it = todo.set_branch(args["id"], None if b == "none" else b, args.get("repo"))
         return "%s\nbranch: %s" % (todo.fmt(it), it.get("branch") or ("dates only" if it.get("branch_source") else "automatic"))
     if name == "tracker_move":
+        if "ids" not in args and not args.get("auto"):
+            raise TrackerError("give ids (an empty list means no task) or auto: true")
         target = "auto" if args.get("auto") else args.get("ids") or None
         key = todo.move(args["sha"], target)
         return "%s -> %s" % (key, "automatic" if target == "auto" else ", ".join(target or []) or "no task")

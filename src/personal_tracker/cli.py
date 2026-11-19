@@ -35,7 +35,7 @@ def build_parser():
     sub.add_parser("todo").add_argument("--all", action="store_true")
     b = sub.add_parser("branch", help="set a task's git branch by hand (its commits follow)")
     b.add_argument("id"); b.add_argument("branch", nargs="?"); b.add_argument("--repo", help="repo path under the root, e.g. proj/app")
-    bm = b.add_mutually_exclusive_group(); bm.add_argument("--none", action="store_true", help="link by dates only")
+    bm = b.add_mutually_exclusive_group(); bm.add_argument("--none", action="store_true", help="no branch: only commits in its dates that no other task claims")
     bm.add_argument("--auto", action="store_true", help="back to automatic")
     mv = sub.add_parser("move", help="put a commit on other task(s), on none, or back to automatic")
     mv.add_argument("sha"); mv.add_argument("ids", nargs="*")

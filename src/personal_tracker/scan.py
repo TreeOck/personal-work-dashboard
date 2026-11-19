@@ -105,16 +105,38 @@ def made_on(repo, default):
             sha, _, subject = line.partition(FIELD)
             if subject.startswith(("commit", "cherry-pick")) and sha not in out:
                 out[sha] = b
+    tags = set(git(repo, "tag", "-l").split())
+    remotes = tuple(r + "/" for r in git(repo, "remote").split())
+
+    def is_branch(target):   # `checkout X` also logs detaching onto a sha, HEAD, a tag or a remote branch
+        return not (target == "HEAD" or re.fullmatch(r"[0-9a-f]{7,40}", target) or target in tags
+                    or (remotes and target.startswith(remotes)))
+
     for checkout in _checkouts(repo):   # HEAD logs keep branches deleted long ago (90 days by default)
-        current = None
+        current, rebasing = None, None
         entries = git(checkout, "reflog", "show", "--format=%H" + FIELD + "%gs", "HEAD", "--").splitlines()
         for line in reversed(entries):   # oldest first, following the checkouts
             sha, _, subject = line.partition(FIELD)
-            if subject.startswith("checkout: moving from "):
+            step = re.match(r"rebase(?: -[im])? \((\w+)\)", subject)
+            if step:   # a rebase rewrites commits; they belong to the branch it returns to
+                kind = step.group(1)
+                if kind == "start":
+                    rebasing = []
+                elif kind == "finish":
+                    target = subject.rsplit("refs/heads/", 1)[-1].strip() if "refs/heads/" in subject else None
+                    if target and target != default:
+                        for s in rebasing or []:
+                            out.setdefault(s, target)
+                    current, rebasing = target, None
+                elif kind == "abort":
+                    rebasing = None
+                elif rebasing is not None:
+                    rebasing.append(sha)
+            elif rebasing is not None and subject.startswith("commit"):
+                rebasing.append(sha)
+            elif subject.startswith("checkout: moving from "):
                 target = subject.rsplit(" to ", 1)[-1].strip()
-                current = None if re.fullmatch(r"[0-9a-f]{7,40}", target) else target   # a sha = detached HEAD
-            elif subject.startswith("rebase (finish): returning to refs/heads/"):
-                current = subject.rsplit("refs/heads/", 1)[-1].strip()
+                current = target if is_branch(target) else None
             elif subject.startswith(("commit", "cherry-pick")) and current and current != default:
                 out.setdefault(sha, current)
     if default:
@@ -141,6 +163,9 @@ def run(days=14, since=None):
         rel = rel_posix(repo, root)
         project = rel.split("/")[0]
         made = made_on(repo, default_branch(repo))
+        for (rp, sha), old in existing.items():   # older commits outside this scan's window learn their branch too
+            if rp == rel and not old.get("branch") and sha in made:
+                old["branch"] = made[sha]
         for sha, c in scan_repo(repo, since, patterns).items():
             c.update({"repo_path": rel, "repo": rel.split("/")[-1], "project": project})
             old = existing.get((rel, sha), {})

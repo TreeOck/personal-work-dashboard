@@ -83,7 +83,7 @@ def _effective(items, scope, now):
         w = window(it, now)
         span[it["id"]] = (w[1] - w[0]).total_seconds() if w else 0
     choice = {tid: 0 for tid in wants}
-    for _ in range(len(wants) + 1):
+    for _ in range(sum(len(w) for w in wants.values()) + 1):   # each pass moves one task down its list: bounded
         changed = False
         current = {tid: wants[tid][i] for tid, i in choice.items() if i < len(wants[tid])}
         def rank(t, ks):   # larger share of the task's window commits wins; on a tie the shorter (more focused) window

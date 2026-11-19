@@ -78,9 +78,17 @@ def _record_branch(doc, it, path, cfg):
     if not found:
         return
     repo_path, branch = found
-    if any(o is not it and o.get("status") in ("in_progress", "paused") and o.get("branch") == branch
-           and o.get("branch_repo") == repo_path for o in doc["items"]):
+    others = [o for o in doc["items"] if o is not it and o.get("status") in ("in_progress", "paused")]
+    if any(o.get("branch") == branch and o.get("branch_repo") == repo_path for o in others):
         return
+    if any(o.get("project") == it["project"] and o.get("repo") == it["repo"] for o in others):
+        # another task is open in this repo: a branch that already has commits of its own (on no other branch) is
+        # probably that task's (started before `git checkout -b`); one fresh from `checkout -b` has none yet
+        from . import scan
+        own = scan.git(str(cfg.root / repo_path), "rev-list", "--count", "refs/heads/" + branch, "--not",
+                       "--exclude=" + branch, "--branches", "--")   # --exclude takes the bare name with --branches
+        if own.strip() != "0":
+            return
     it["branch"], it["branch_repo"], it["branch_source"] = branch, repo_path, "auto"
 
 
