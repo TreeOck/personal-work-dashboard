@@ -5,7 +5,7 @@
 cli.py        the `tracker` command (argparse); every subcommand lands here
 todo.py       current-tasks list: add / start / pause / done / drop / note  (locks, atomic writes, rebuild)
 scan.py       git -> commits.json            summarise.py   commits -> tasks.json via the configured summariser
-links.py      commits <-> to-do tasks        build.py       JSON -> dashboard.html / desk.html
+links.py      commits <-> to-do tasks (by branch, window, hand moves)        build.py       JSON -> dashboard.html / desk.html
 inks.py       project -> ink colours         server.py      local edit server (see docs/api/edit-server.md)
 setup.py      init / migrate                 schedule.py    daily refresh (launchd / Task Scheduler / cron line)
 config.py     config.json -> Config          files.py       UTF-8 JSON, atomic replace, exclusive lock

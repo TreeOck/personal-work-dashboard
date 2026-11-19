@@ -2,6 +2,19 @@
 
 Versions follow `pyproject.toml` (the only place the version is written). Before 1.0 anything may still change.
 
+## 0.10.0 – 2026-11-19
+
+Commits are linked to the task whose branch they were made on.
+
+### Added
+- The scanner remembers the branch each commit was made on (`branch` in `commits.json`): from branch reflogs, then each checkout's HEAD reflog (so branches merged fast-forward and deleted still count), then branches that hold the commit while the default branch doesn't.
+- Tasks record their branch when added with `--path` or started (`tracker start <id> --path <folder>`, `tracker_start` `path`), unless another open task already holds it.
+- Corrections: `tracker branch` / `tracker move`, edit-server actions `branch` / `move`, MCP tools `tracker_branch` / `tracker_move`, and in the details panel a branch picker and "Move…" on each commit.
+
+### Changed
+- Linking (`links.assign`) works across the whole board: a task gets its window's commits on its own branch, of unknown branch, or on branches no other task claims; overlapping tasks in one repo no longer share each other's commits (on the owner's data: commits linked to 2+ tasks 192 → 60).
+- Agent rules ask agents to pass their workspace folder when starting a task.
+
 ## 0.9.0 – 2026-11-03
 
 AI tools other than Claude can keep the tracker in sync.
