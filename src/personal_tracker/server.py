@@ -29,6 +29,9 @@ PORT = 47615            # fixed so a bookmark keeps working; any free port if it
 IDLE = 12 * 3600
 ID = re.compile(r"^t-\d{4,}$")
 MAX_BODY = 16 * 1024
+SHA = re.compile(r"^[0-9a-f]{4,40}$")
+BRANCH = re.compile(r"^(?!-)(?!.*\.\.)[\w./-]{1,200}$")
+REPO = re.compile(r"^(?!.*\.\.)[\w.-]+(/[\w.-]+){0,3}$")
 
 
 def todo_argv(body):
@@ -50,9 +53,29 @@ def todo_argv(body):
                     raise ValueError("%s can only use letters, digits, '.', '_' and '-'" % key)
                 argv += [flag, v]
         return argv + ["--", title]
+    if action == "move":
+        sha = str(body.get("sha") or "").lower()
+        if not SHA.match(sha):
+            raise ValueError("bad commit id")
+        ids = body.get("ids")
+        if ids in ("none", "auto"):
+            return ["move", "--" + ids, "--", sha]
+        if not isinstance(ids, list) or not ids or not all(isinstance(i, str) and ID.match(i) for i in ids):
+            raise ValueError("ids must be task ids, \"none\" or \"auto\"")
+        return ["move", "--", sha] + ids
     tid = str(body.get("id") or "")
     if not ID.match(tid):
         raise ValueError("bad task id")
+    if action == "branch":
+        branch = str(body.get("branch") or "")
+        if branch in ("none", "auto"):
+            return ["branch", "--" + branch, "--", tid]
+        if not BRANCH.match(branch):
+            raise ValueError("bad branch name")
+        repo = str(body.get("repo") or "")
+        if repo and not REPO.match(repo):
+            raise ValueError("bad repo path")
+        return ["branch"] + (["--repo", repo] if repo else []) + ["--", tid, branch]
     if action in ("start", "done", "drop"):
         return [action, "--", tid]
     if action == "pause":

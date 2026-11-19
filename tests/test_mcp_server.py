@@ -2,7 +2,8 @@ import json
 import subprocess
 import sys
 
-TOOL_NAMES = ["tracker_todo", "tracker_add", "tracker_start", "tracker_note", "tracker_pause", "tracker_done", "tracker_drop"]
+TOOL_NAMES = ["tracker_todo", "tracker_add", "tracker_start", "tracker_note", "tracker_pause", "tracker_done", "tracker_drop",
+              "tracker_branch", "tracker_move"]
 
 
 def _rpc(sandbox, lines):
@@ -117,7 +118,7 @@ def test_server_survives_bad_input(sandbox):
 def test_no_config_gives_a_clear_tool_error(sandbox):
     (sandbox.dir / "config.json").unlink()
     replies, _ = _rpc(sandbox, [_init(1), _req(2, "tools/list"), _call(3, "tracker_todo", {})])
-    assert len(replies[1]["result"]["tools"]) == 7
+    assert len(replies[1]["result"]["tools"]) == len(TOOL_NAMES)
     assert replies[2]["result"]["isError"] and "tracker init" in _text(replies[2])
 
 

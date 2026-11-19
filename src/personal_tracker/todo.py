@@ -151,3 +151,68 @@ def set_status(tid, action, path=None):
             it["started_at"] = now()  # first start only; re-opening keeps the original
     rebuild()
     return it, True
+
+
+# ---- hand corrections (step 3) --------------------------------------------------------------------------------------
+
+def _commits():
+    return (files.read_json(paths.file("commits.json")) or {}).get("commits", [])
+
+
+def set_branch(tid, branch, repo=None):
+    """Set a task's branch by hand: a branch name, None (dates only) or "auto" (back to automatic).
+    The branch is stored with its repo path; a task without a repo needs `repo` when several of its project's repos
+    have commits on that branch."""
+    with locked() as doc:
+        it = find(doc, tid)
+        if branch == "auto":
+            for k in ("branch", "branch_repo", "branch_source"):
+                it.pop(k, None)
+        elif branch is None:
+            it["branch"], it["branch_repo"], it["branch_source"] = None, None, "manual"
+        else:
+            it["branch"], it["branch_repo"], it["branch_source"] = branch, _branch_repo(it, branch, repo), "manual"
+        it["updated_at"] = now()
+    rebuild()
+    return it
+
+
+def _branch_repo(it, branch, repo):
+    if repo:
+        return repo.strip("/")
+    commits = _commits()
+    if it.get("repo"):
+        for c in commits:
+            if c.get("project") == it.get("project") and c.get("repo") == it["repo"]:
+                return c["repo_path"]
+        return "%s/%s" % (it.get("project"), it["repo"])
+    have = sorted({c["repo_path"] for c in commits if c.get("project") == it.get("project") and c.get("branch") == branch})
+    if not have:
+        raise TrackerError("no commits on branch %s in project %s (pass --repo to set it anyway)" % (branch, it.get("project")))
+    if len(have) > 1:
+        raise TrackerError("branch %s is in several repos: %s -- pass --repo" % (branch, ", ".join(have)))
+    return have[0]
+
+
+def move(sha, target):
+    """Put a commit on these task ids, on no task (None) or back to automatic ("auto"). Returns its key."""
+    sha = sha.strip().lower()
+    keys = sorted({"%s:%s" % (c["repo_path"], c["sha"]) for c in _commits() if c["sha"].startswith(sha)})
+    if not keys:
+        raise TrackerError("no commit %s in the scanned commits (run: tracker scan)" % sha)
+    if len(keys) > 1:
+        raise TrackerError("%s matches %d commits: %s -- use more characters" % (sha, len(keys), ", ".join(keys)))
+    key = keys[0]
+    with locked() as doc:
+        moves = doc.setdefault("moves", {})
+        if target == "auto":
+            moves.pop(key, None)
+        else:
+            ids = list(dict.fromkeys(target or []))
+            for tid in ids:
+                find(doc, tid)
+            moves[key] = ids
+        if not moves:
+            doc.pop("moves")
+    rebuild()
+    return key

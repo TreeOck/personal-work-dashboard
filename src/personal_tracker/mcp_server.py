@@ -50,6 +50,23 @@ TOOLS = [
      "description": "Mark a tracker task as dropped when the work is abandoned or superseded.",
      "inputSchema": {"type": "object", "properties": dict(_ID), "required": ["id"]}},
 ]
+TOOLS += [
+    {"name": "tracker_branch",
+     "description": "Correction, rarely needed: set which git branch a tracker task's commits come from, when the "
+                    "automatic choice is wrong. branch \"none\" links by dates only; \"auto\" goes back to automatic.",
+     "inputSchema": {"type": "object", "properties": dict(_ID,
+         branch={"type": "string", "description": "Branch name, \"none\" or \"auto\"."},
+         repo={"type": "string", "description": "Repo path under the root (only needed for a task without a repo)."}),
+         "required": ["id", "branch"]}},
+    {"name": "tracker_move",
+     "description": "Correction, rarely needed: say which tracker task(s) a commit belongs to, overriding the "
+                    "automatic linking. An empty ids list means no task; auto=true goes back to automatic.",
+     "inputSchema": {"type": "object", "properties": {
+         "sha": {"type": "string", "description": "The commit hash (at least 4 characters)."},
+         "ids": {"type": "array", "items": {"type": "string"}, "description": "Task ids, e.g. [\"t-0007\"]."},
+         "auto": {"type": "boolean", "description": "Go back to automatic linking for this commit."}},
+         "required": ["sha"]}},
+]
 _SCHEMAS = {t["name"]: t["inputSchema"] for t in TOOLS}
 
 
@@ -74,6 +91,8 @@ def _check_args(name, args):
             raise TrackerError("missing required argument: %s" % key)
     for key, value in args.items():
         want = schema["properties"].get(key, {}).get("type")
+        if want == "array" and not (isinstance(value, list) and all(isinstance(v, str) for v in value)):
+            raise TrackerError("argument %s must be a list of strings" % key)
         if want == "string" and not isinstance(value, str) or want == "boolean" and not isinstance(value, bool):
             raise TrackerError("argument %s must be a %s" % (key, want))
 
@@ -102,6 +121,14 @@ def _run_tool(name, args):
         return _status_line(item, changed, "paused")
     if name == "tracker_note":
         return todo.fmt(todo.note(args["id"], args["text"]))
+    if name == "tracker_branch":
+        b = args["branch"]
+        it = todo.set_branch(args["id"], None if b == "none" else b, args.get("repo"))
+        return "%s\nbranch: %s" % (todo.fmt(it), it.get("branch") or ("dates only" if it.get("branch_source") else "automatic"))
+    if name == "tracker_move":
+        target = "auto" if args.get("auto") else args.get("ids") or None
+        key = todo.move(args["sha"], target)
+        return "%s -> %s" % (key, "automatic" if target == "auto" else ", ".join(target or []) or "no task")
     raise AssertionError(name)
 
 

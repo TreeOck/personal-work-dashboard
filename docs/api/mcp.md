@@ -36,6 +36,8 @@ every error.
 | `tracker_done` / `tracker_drop` | `id` (string, required) | the task line, or `already <status>: …` |
 | `tracker_pause` | `id` (required), `reason` (optional; saved as a `Paused: …` note) | the task line, or `already paused: …` |
 | `tracker_note` | `id`, `text` (both required) | the task line |
+| `tracker_branch` | `id`, `branch` (name, `"none"` = dates only, `"auto"`), optional `repo` | the task line + `branch: …`. A correction, rarely needed |
+| `tracker_move` | `sha` (≥4 hex chars), `ids` (task ids; empty = no task) or `auto: true` | `<repo_path>:<sha> -> …`. A correction, rarely needed |
 
 **Project and repo come from `path`** (the server's own working folder is unreliable: apps start it in `/`, `~` or the
 project): project = the first folder under the configured root, repo = the first git repo at most 3 levels below the
