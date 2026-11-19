@@ -65,7 +65,26 @@ def list_items(all_=False):
     return [i for i in doc["items"] if all_ or i["status"] in OPEN]
 
 
-def add(title, project=None, repo=None, plan=None):
+def _record_branch(doc, it, path, cfg):
+    """Remember the branch the task is worked on (auto), once: only if nothing is recorded yet, the task has a repo,
+    and no other open task already holds that branch (a plan is often written before `git checkout -b`)."""
+    from . import locate
+    if it.get("branch_source") or not it.get("project") or not it.get("repo"):
+        return
+    if path is None:
+        folder = locate.repo_folder(cfg.root, it["project"], it["repo"])
+        path = str(folder) if folder else None
+    found = locate.current_branch(path, cfg.root) if path else None
+    if not found:
+        return
+    repo_path, branch = found
+    if any(o is not it and o.get("status") in ("in_progress", "paused") and o.get("branch") == branch
+           and o.get("branch_repo") == repo_path for o in doc["items"]):
+        return
+    it["branch"], it["branch_repo"], it["branch_source"] = branch, repo_path, "auto"
+
+
+def add(title, project=None, repo=None, plan=None, path=None):
     title = title.strip()
     if not title:
         raise TrackerError("title can't be empty")
@@ -78,6 +97,8 @@ def add(title, project=None, repo=None, plan=None):
               "plan": os.path.abspath(plan) if plan else None, "status": "todo",
               "created_at": now(), "updated_at": now(), "started_at": None, "closed_at": None, "notes": []}
         doc["items"].append(it)
+        if path:
+            _record_branch(doc, it, path, cfg)
     rebuild()
     return it
 
@@ -109,8 +130,9 @@ def pause(tid, reason=""):
     return it, True
 
 
-def set_status(tid, action):
-    """action is start, done or drop. Returns (item, changed); asking for the status it already has is a no-op."""
+def set_status(tid, action, path=None):
+    """action is start, done or drop. Returns (item, changed); asking for the status it already has is a no-op.
+    Starting records the task's branch (see _record_branch), from `path` (the agent's folder) or the repo's folder."""
     new = {"start": "in_progress", "done": "done", "drop": "dropped"}[action]
     with locked() as doc:
         it = find(doc, tid)
@@ -123,6 +145,8 @@ def set_status(tid, action):
             it["paused_at"] = None
         it["status"], it["updated_at"] = new, now()
         it["closed_at"] = now() if new in ("done", "dropped") else None
+        if new == "in_progress":
+            _record_branch(doc, it, path, config.load())
         if new == "in_progress" and not it.get("started_at"):
             it["started_at"] = now()  # first start only; re-opening keeps the original
     rebuild()

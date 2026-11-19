@@ -2,7 +2,7 @@
 
 Keep the user's work tracker in sync with the `tracker` command. Do this on your own, without asking the user.
 
-- **When work starts** (a plan or spec is written, a task list is created, or you begin implementing a request): run `tracker todo` first, and if an open task matches this work, reuse its id. Otherwise run `tracker add "<short imperative title>" --path "<your workspace folder>"` (it prints the new id, e.g. `t-0007`), then `tracker start <id>` once you are actually working on it.
+- **When work starts** (a plan or spec is written, a task list is created, or you begin implementing a request): run `tracker todo` first, and if an open task matches this work, reuse its id. Otherwise run `tracker add "<short imperative title>" --path "<your workspace folder>"` (it prints the new id, e.g. `t-0007`), then `tracker start <id> --path "<your workspace folder>"` once you are actually working on it (the path records your git branch, so the right commits are linked).
 - One task per user-level piece of work (a feature, a fix, an investigation), not per sub-step. Questions, explanations and read-only exploration don't get a task.
 - **While working:** `tracker note <id> "<milestone>"` for notable progress (plan approved, tests passing, PR opened).
 - **When work is put aside** (the user switches to other work, or it is blocked on someone else): `tracker pause <id> "<reason>"`. Paused tasks still count as open; `tracker start <id>` resumes one.

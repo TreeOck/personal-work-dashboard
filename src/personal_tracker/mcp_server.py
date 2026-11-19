@@ -32,7 +32,9 @@ TOOLS = [
          "required": ["title", "path"]}},
     {"name": "tracker_start",
      "description": "Mark a tracker task as in progress once you are actually working on it (also resumes a paused task).",
-     "inputSchema": {"type": "object", "properties": dict(_ID), "required": ["id"]}},
+     "inputSchema": {"type": "object", "properties": dict(_ID, path={"type": "string", "description":
+         "The absolute path of your workspace folder; the git branch checked out there is recorded for the task."}),
+         "required": ["id"]}},
     {"name": "tracker_note",
      "description": "Add a progress note to a tracker task at a notable milestone (plan approved, tests passing, PR opened).",
      "inputSchema": {"type": "object", "properties": dict(_ID, text={"type": "string", "description": "The note."}),
@@ -88,11 +90,12 @@ def _run_tool(name, args):
         root = config.load().root
         project, repo = locate.project_repo_for(args["path"], root)
         hint = "" if project else "\nnote: %s is not under the tracker's root folder %s, so the task has no project" % (args["path"], root)
-        item = todo.add(args["title"], args.get("project") or project, args.get("repo") or repo, args.get("plan"))
+        item = todo.add(args["title"], args.get("project") or project, args.get("repo") or repo, args.get("plan"),
+                        args["path"])
         return "%s\n%s%s" % (item["id"], todo.fmt(item), hint)
     if name in ("tracker_start", "tracker_done", "tracker_drop"):
         action = name.split("_")[1]
-        item, changed = todo.set_status(args["id"], action)
+        item, changed = todo.set_status(args["id"], action, args.get("path") if action == "start" else None)
         return _status_line(item, changed, {"start": "in_progress", "done": "done", "drop": "dropped"}[action])
     if name == "tracker_pause":
         item, changed = todo.pause(args["id"], args.get("reason", ""))

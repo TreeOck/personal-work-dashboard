@@ -15,6 +15,8 @@
 | `paused_at` | ISO or null | **new** — set while `paused` |
 | `pauses` | list of `{"from", "to"}` | **new** — each finished pause, closed by `start`, `done` or `drop` |
 | `notes` | list of `{"at", "text"}` | `pause` with a reason adds `"Paused: <reason>"` |
+| `branch`, `branch_repo` | string or null | **new (0.10.0)** — the git branch the task is worked on and its repo path under the root |
+| `branch_source` | `"auto"` · `"manual"` · absent | `auto`: recorded by `add --path` / `start` (the branch checked out in the given folder, else the repo's folder), only if it isn't the default branch and no other open task holds it; never overwritten by later starts. `manual`: set with `tracker branch` (`branch` null = dates only) |
 
 Transitions: `pause` only from `in_progress` (pausing a paused task prints "already paused").
 **Linking (`links.assign`, run at every build; 0.10.0).** A task's *window* is `started_at`…`closed_at` (or now)

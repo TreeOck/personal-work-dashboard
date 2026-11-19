@@ -27,7 +27,9 @@ def build_parser():
     a.add_argument("title"); a.add_argument("-p", "--project"); a.add_argument("-r", "--repo"); a.add_argument("--plan")
     a.add_argument("--path", help="your workspace folder; fills in project and repo unless -p / -r are given")
     for c in ("start", "done", "drop"):
-        sub.add_parser(c).add_argument("id")
+        sp = sub.add_parser(c); sp.add_argument("id")
+        if c == "start":
+            sp.add_argument("--path", help="your workspace folder (records the branch checked out there)")
     p = sub.add_parser("pause"); p.add_argument("id"); p.add_argument("reason", nargs="?", default="")
     n = sub.add_parser("note"); n.add_argument("id"); n.add_argument("text")
     sub.add_parser("todo").add_argument("--all", action="store_true")
@@ -144,9 +146,9 @@ def dispatch(args):
         if args.path:
             p, r = locate.project_repo_for(args.path, config.load().root)
             project, repo = project or p, repo or r
-        print(todo.add(args.title, project, repo, args.plan)["id"])
+        print(todo.add(args.title, project, repo, args.plan, args.path)["id"])
     elif c in ("start", "done", "drop"):
-        it, changed = todo.set_status(args.id, c)
+        it, changed = todo.set_status(args.id, c, getattr(args, "path", None))
         new = {"start": "in_progress", "done": "done", "drop": "dropped"}[c]
         print(todo.fmt(it) if changed else "already %s: %s" % (new, todo.fmt(it)))
     elif c == "pause":
