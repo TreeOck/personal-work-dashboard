@@ -35,3 +35,16 @@ In the data folder (`$TRACKER_HOME`, default `~/.personal-tracker`). Written by 
 | `summariser_input` | string, optional | How the prompt reaches the summariser: `"stdin"` (default) or `"agy-stream-json"` (Antigravity's `agy`: one `{"event":"user","message":{"content":…}}` line on stdin; the answer is the last `result` event's `result.response`, which must have `status` `"SUCCESS"`). Anything else is an error |
 
 Migration: `tracker migrate` copies an old checkout's `config.json`, adding `"timezone": "Asia/Kolkata"` and the Claude summariser when the keys are missing (what the old scripts did implicitly).
+
+## `commits.json`
+
+`{"generated_at", "since", "author_pattern", "commits": [Commit, ...]}`, written by `tracker scan` (merged by repo path
+and sha, so older history is kept).
+
+| Field | Type | Notes |
+|---|---|---|
+| `sha`, `author`, `email`, `date`, `subject`, `body` | strings | from `git log`; `date` ISO 8601 with offset |
+| `files`, `ins`, `del` | list / ints | changed paths and line counts |
+| `project`, `repo`, `repo_path` | strings | first folder under the root / repo folder name / repo path under the root with `/` |
+| `branches` | list of strings | up to 6 branches that *contain* the commit (later branches contain older commits too) |
+| `branch` | string or null | **new (0.10.0)** — the branch the commit was **made on**: from that branch's reflog (`commit`, `commit (amend)`, `cherry-pick` entries), else a branch that has it while the default branch (`main`, `master`, or `origin/HEAD`'s) doesn't; null for commits made on the default branch or never seen on a branch. Once set it is kept by later scans, so fast-forward merges and deleted branches don't lose it |

@@ -75,6 +75,34 @@ def scan_repo(repo, since, patterns):
     return commits
 
 
+def default_branch(repo):
+    """main, else master, else the branch origin/HEAD points to; None if none of them exists."""
+    for name in ("main", "master"):
+        if git(repo, "rev-parse", "--verify", "-q", "refs/heads/" + name).strip():
+            return name
+    ref = git(repo, "symbolic-ref", "-q", "refs/remotes/origin/HEAD").strip()
+    return ref.split("/", 3)[-1] if ref.startswith("refs/remotes/origin/") else None
+
+
+def made_on(repo, default):
+    """full sha -> the branch it was made on, for commits that can still be told apart.
+    Best source: each branch's reflog, whose "commit" entries are exactly the commits made on it (also from other
+    worktrees). For commits with no such entry: a branch that has them while the default branch doesn't."""
+    branches = [b.strip() for b in git(repo, "for-each-ref", "--format=%(refname:short)", "refs/heads/").splitlines()
+                if b.strip() and b.strip() != default]
+    out = {}
+    for b in branches:
+        for line in git(repo, "reflog", "show", "--format=%H" + FIELD + "%gs", "refs/heads/" + b, "--").splitlines():
+            sha, _, subject = line.partition(FIELD)
+            if subject.startswith(("commit", "cherry-pick")) and sha not in out:
+                out[sha] = b
+    if default:
+        for b in branches:
+            for sha in git(repo, "rev-list", "refs/heads/%s..refs/heads/%s" % (default, b), "--").split():
+                out.setdefault(sha, b)
+    return out
+
+
 def run(days=14, since=None):
     """Scan every repo under the configured root; returns how many commits commits.json now holds."""
     if not shutil.which("git"):
@@ -91,8 +119,11 @@ def run(days=14, since=None):
     for repo in find_repos(root):
         rel = rel_posix(repo, root)
         project = rel.split("/")[0]
+        made = made_on(repo, default_branch(repo))
         for sha, c in scan_repo(repo, since, patterns).items():
             c.update({"repo_path": rel, "repo": rel.split("/")[-1], "project": project})
+            old = existing.get((rel, sha), {})
+            c["branch"] = old.get("branch") or made.get(sha)   # once known, kept: the branch may be merged and deleted later
             existing[(rel, sha)] = c  # same hash in same repo = one commit
 
     commits = sorted(existing.values(), key=lambda c: c["date"])
