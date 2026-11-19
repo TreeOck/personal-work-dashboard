@@ -84,4 +84,16 @@ def test_scan_runs_one_reflog_read_per_branch(tmp_path, monkeypatch):
     real = scan.git
     monkeypatch.setattr(scan, "git", lambda r, *a: (calls.append(a), real(r, *a))[1])
     scan.made_on(str(repo), "main")
-    assert sum(1 for a in calls if "reflog" in a) == 2
+    assert sum(1 for a in calls if "reflog" in a) == 2 + 1   # one per branch, plus the HEAD log of the one checkout
+
+
+def test_head_reflog_remembers_branches_deleted_before_any_scan(tmp_path):
+    repo = new_repo(tmp_path / "app")
+    g(repo, "checkout", "-q", "-b", "feat/old")
+    old = commit(repo, "on a branch that is gone by the first scan")
+    g(repo, "checkout", "-q", "main")
+    g(repo, "merge", "-q", "--ff-only", "feat/old")
+    g(repo, "branch", "-q", "-d", "feat/old")
+    direct = commit(repo, "made on main")
+    got = scan.made_on(str(repo), "main")
+    assert got.get(old) == "feat/old" and direct not in got

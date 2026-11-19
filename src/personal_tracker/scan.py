@@ -4,6 +4,7 @@ Default window is 14 days. Existing commits.json is merged by hash, so history
 older than the window is kept once it has been seen.
 """
 import os
+import re
 import shutil
 import subprocess
 from datetime import datetime, timedelta
@@ -84,10 +85,18 @@ def default_branch(repo):
     return ref.split("/", 3)[-1] if ref.startswith("refs/remotes/origin/") else None
 
 
+def _checkouts(repo):
+    """The repo's own folder and every linked worktree that still exists."""
+    found = [line[len("worktree "):] for line in git(repo, "worktree", "list", "--porcelain").splitlines()
+             if line.startswith("worktree ")]
+    return [p for p in found if os.path.isdir(p)] or [repo]
+
+
 def made_on(repo, default):
     """full sha -> the branch it was made on, for commits that can still be told apart.
     Best source: each branch's reflog, whose "commit" entries are exactly the commits made on it (also from other
-    worktrees). For commits with no such entry: a branch that has them while the default branch doesn't."""
+    worktrees). Next: each checkout's HEAD log, read in order (a commit belongs to the branch last checked out), which
+    still remembers branches deleted since. Last: a branch that has the commit while the default branch doesn't."""
     branches = [b.strip() for b in git(repo, "for-each-ref", "--format=%(refname:short)", "refs/heads/").splitlines()
                 if b.strip() and b.strip() != default]
     out = {}
@@ -96,6 +105,18 @@ def made_on(repo, default):
             sha, _, subject = line.partition(FIELD)
             if subject.startswith(("commit", "cherry-pick")) and sha not in out:
                 out[sha] = b
+    for checkout in _checkouts(repo):   # HEAD logs keep branches deleted long ago (90 days by default)
+        current = None
+        entries = git(checkout, "reflog", "show", "--format=%H" + FIELD + "%gs", "HEAD", "--").splitlines()
+        for line in reversed(entries):   # oldest first, following the checkouts
+            sha, _, subject = line.partition(FIELD)
+            if subject.startswith("checkout: moving from "):
+                target = subject.rsplit(" to ", 1)[-1].strip()
+                current = None if re.fullmatch(r"[0-9a-f]{7,40}", target) else target   # a sha = detached HEAD
+            elif subject.startswith("rebase (finish): returning to refs/heads/"):
+                current = subject.rsplit("refs/heads/", 1)[-1].strip()
+            elif subject.startswith(("commit", "cherry-pick")) and current and current != default:
+                out.setdefault(sha, current)
     if default:
         for b in branches:
             for sha in git(repo, "rev-list", "refs/heads/%s..refs/heads/%s" % (default, b), "--").split():
