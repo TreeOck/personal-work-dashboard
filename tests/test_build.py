@@ -77,3 +77,22 @@ def test_page_has_no_hard_coded_zone_label(site):
     site()
     html = (site.dir / "dashboard.html").read_text(encoding="utf-8")
     assert " IST`" not in html and ' IST"' not in html
+
+
+def test_build_writes_linked_and_branch_effective(site):
+    commits = json.loads((site.dir / "commits.json").read_text())
+    c = commits["commits"][0]
+    c["branch"] = "feat/z"
+    other = dict(c, sha="b" * 40, date="2026-10-12T11:00:00+05:30")
+    commits["commits"].append(other)
+    (site.dir / "commits.json").write_text(json.dumps(commits))
+    todo = {"items": [{"id": "t-0002", "title": "y", "project": "alpha", "repo": "alpha-be", "status": "done",
+                       "created_at": "2026-10-12T09:00:00+05:30", "updated_at": "2026-10-12T09:00:00+05:30",
+                       "started_at": "2026-10-12T09:00:00+05:30", "closed_at": "2026-10-12T12:00:00+05:30",
+                       "plan": None, "notes": []}],
+            "moves": {"alpha/alpha-be:" + "b" * 40: []}}
+    (site.dir / "todo.json").write_text(json.dumps(todo))
+    assert site().returncode == 0
+    (it,) = json.loads((site.dir / "dev-data.json").read_text(encoding="utf-8"))["todo"]
+    assert it["linked"] == ["alpha/alpha-be:" + "a" * 40]   # the moved-away commit is not linked
+    assert it["branch_effective"] == {"repo": "alpha/alpha-be", "branch": "feat/z", "source": "inferred"}

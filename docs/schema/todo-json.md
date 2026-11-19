@@ -17,8 +17,18 @@
 | `notes` | list of `{"at", "text"}` | `pause` with a reason adds `"Paused: <reason>"` |
 
 Transitions: `pause` only from `in_progress` (pausing a paused task prints "already paused").
-`links.py` links commits made between `started_at` and `closed_at` (or now), **except** those inside
-`pauses` or after `paused_at`.
+**Linking (`links.assign`, run at every build; 0.10.0).** A task's *window* is `started_at`…`closed_at` (or now)
+minus `pauses` and anything after `paused_at`, in its project (and repo, if set). Each task has a *branch*: set by
+hand (`branch_source: "manual"`), recorded automatically (`"auto"`, used only if it has commits in the window), or
+inferred: the branch holding most of its window commits; when several tasks want the same branch for the same
+commits it goes to the task for which they are the largest share (tie: the shorter window), and the others try
+their next branch. A task gets the commits in its window that are on its branch, of unknown branch, or on a branch no
+other task claims at that time. Commits listed in `moves` go only to the tasks listed there. The build writes each
+task's `linked` (`"<repo_path>:<sha>"` keys) and `branch_effective` (`{"repo", "branch", "source":
+"manual"|"auto"|"inferred"}` or null) into the page data; neither is stored in `todo.json`.
+
+Top-level `"moves"` (optional): `{"<repo_path>:<full sha>": ["t-0001", ...]}`, the owner's hand corrections; an
+empty list means "no task".
 
 Migration: none needed. Items written before pausing existed have no `paused_at` / `pauses`; every reader uses `.get`.
 
