@@ -69,7 +69,7 @@ def test_build_inlines_timezone_and_version(site):
     (site.dir / "config.json").write_text(json.dumps(cfg))
     assert site().returncode == 0
     html = (site.dir / "dashboard.html").read_text(encoding="utf-8")
-    assert '"timezone": "Asia/Kolkata"' in html and '"version": "0.9.0"' in html
+    assert '"timezone": "Asia/Kolkata"' in html and '"version": "0.10.0"' in html
     assert "const TZ = DATA.timezone" in html and 'timeZone: "Asia/Kolkata"' not in html
 
 
@@ -77,3 +77,37 @@ def test_page_has_no_hard_coded_zone_label(site):
     site()
     html = (site.dir / "dashboard.html").read_text(encoding="utf-8")
     assert " IST`" not in html and ' IST"' not in html
+
+
+def test_build_writes_linked_and_branch_effective(site):
+    commits = json.loads((site.dir / "commits.json").read_text())
+    c = commits["commits"][0]
+    c["branch"] = "feat/z"
+    other = dict(c, sha="b" * 40, date="2026-10-12T11:00:00+05:30")
+    commits["commits"].append(other)
+    (site.dir / "commits.json").write_text(json.dumps(commits))
+    todo = {"items": [{"id": "t-0002", "title": "y", "project": "alpha", "repo": "alpha-be", "status": "done",
+                       "created_at": "2026-10-12T09:00:00+05:30", "updated_at": "2026-10-12T09:00:00+05:30",
+                       "started_at": "2026-10-12T09:00:00+05:30", "closed_at": "2026-10-12T12:00:00+05:30",
+                       "plan": None, "notes": []}],
+            "moves": {"alpha/alpha-be:" + "b" * 40: []}}
+    (site.dir / "todo.json").write_text(json.dumps(todo))
+    assert site().returncode == 0
+    (it,) = json.loads((site.dir / "dev-data.json").read_text(encoding="utf-8"))["todo"]
+    assert it["linked"] == ["alpha/alpha-be:" + "a" * 40]   # the moved-away commit is not linked
+    assert it["branch_effective"] == {"repo": "alpha/alpha-be", "branch": "feat/z", "source": "inferred"}
+
+
+def test_build_embeds_branch_list_per_repo(site):
+    commits = json.loads((site.dir / "commits.json").read_text())
+    c = commits["commits"][0]
+    c["branch"] = "feat/z"
+    commits["commits"] += [dict(c, sha="b" * 40, date="2026-10-14T10:00:00+05:30"),
+                           dict(c, sha="c" * 40, branch=None), dict(c, sha="d" * 40, branch="feat/q", repo_path="alpha/other")]
+    (site.dir / "commits.json").write_text(json.dumps(commits))
+    assert site().returncode == 0
+    got = json.loads((site.dir / "dev-data.json").read_text(encoding="utf-8"))["branches"]
+    assert got == {"alpha/alpha-be": [{"branch": "feat/z", "first": "2026-10-12T10:00:00+05:30",
+                                       "last": "2026-10-14T10:00:00+05:30", "count": 2}],
+                   "alpha/other": [{"branch": "feat/q", "first": "2026-10-12T10:00:00+05:30",
+                                    "last": "2026-10-12T10:00:00+05:30", "count": 1}]}

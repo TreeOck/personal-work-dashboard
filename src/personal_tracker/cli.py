@@ -27,10 +27,19 @@ def build_parser():
     a.add_argument("title"); a.add_argument("-p", "--project"); a.add_argument("-r", "--repo"); a.add_argument("--plan")
     a.add_argument("--path", help="your workspace folder; fills in project and repo unless -p / -r are given")
     for c in ("start", "done", "drop"):
-        sub.add_parser(c).add_argument("id")
+        sp = sub.add_parser(c); sp.add_argument("id")
+        if c == "start":
+            sp.add_argument("--path", help="your workspace folder (records the branch checked out there)")
     p = sub.add_parser("pause"); p.add_argument("id"); p.add_argument("reason", nargs="?", default="")
     n = sub.add_parser("note"); n.add_argument("id"); n.add_argument("text")
     sub.add_parser("todo").add_argument("--all", action="store_true")
+    b = sub.add_parser("branch", help="set a task's git branch by hand (its commits follow)")
+    b.add_argument("id"); b.add_argument("branch", nargs="?"); b.add_argument("--repo", help="repo path under the root, e.g. proj/app")
+    bm = b.add_mutually_exclusive_group(); bm.add_argument("--none", action="store_true", help="no branch: only commits in its dates that no other task claims")
+    bm.add_argument("--auto", action="store_true", help="back to automatic")
+    mv = sub.add_parser("move", help="put a commit on other task(s), on none, or back to automatic")
+    mv.add_argument("sha"); mv.add_argument("ids", nargs="*")
+    mm = mv.add_mutually_exclusive_group(); mm.add_argument("--none", action="store_true"); mm.add_argument("--auto", action="store_true")
     st = sub.add_parser("setup", help="connect Claude Code, Cursor or Antigravity to the tracker (no tool: show what's set up)")
     st.add_argument("tool", nargs="?", choices=agent_setup.TOOLS); st.add_argument("--remove", action="store_true", help="undo the setup")
     st.add_argument("--force", action="store_true", help="don't refuse while Antigravity is open")
@@ -144,9 +153,9 @@ def dispatch(args):
         if args.path:
             p, r = locate.project_repo_for(args.path, config.load().root)
             project, repo = project or p, repo or r
-        print(todo.add(args.title, project, repo, args.plan)["id"])
+        print(todo.add(args.title, project, repo, args.plan, args.path)["id"])
     elif c in ("start", "done", "drop"):
-        it, changed = todo.set_status(args.id, c)
+        it, changed = todo.set_status(args.id, c, getattr(args, "path", None))
         new = {"start": "in_progress", "done": "done", "drop": "dropped"}[c]
         print(todo.fmt(it) if changed else "already %s: %s" % (new, todo.fmt(it)))
     elif c == "pause":
@@ -154,6 +163,17 @@ def dispatch(args):
         print(todo.fmt(it) if changed else "already paused: " + todo.fmt(it))
     elif c == "note":
         print(todo.fmt(todo.note(args.id, args.text)))
+    elif c == "branch":
+        if bool(args.branch) == (args.none or args.auto):
+            raise TrackerError("give a branch name, or --none, or --auto")
+        it = todo.set_branch(args.id, None if args.none else "auto" if args.auto else args.branch, args.repo)
+        print("%s\nbranch: %s" % (todo.fmt(it), it.get("branch") or ("dates only" if it.get("branch_source") else "automatic")))
+    elif c == "move":
+        if bool(args.ids) == (args.none or args.auto):
+            raise TrackerError("give task id(s), or --none, or --auto")
+        target = "auto" if args.auto else None if args.none else args.ids
+        key = todo.move(args.sha, target)
+        print("%s -> %s" % (key, "automatic" if target == "auto" else ", ".join(target or []) or "no task"))
     elif c == "todo":
         print("\n".join(todo.fmt(i) for i in todo.list_items(args.all)) or "no open tasks")
     elif c == "setup":

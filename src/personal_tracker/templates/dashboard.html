@@ -201,6 +201,14 @@ kbd{font:11px ui-monospace,Menlo,monospace;border:1px solid var(--line);border-b
 .acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
 .why-form{display:flex;gap:8px;margin:4px 0 6px;flex-wrap:wrap}
 .why-form[hidden]{display:none}
+.btn.xs{padding:0 8px;font-size:11.5px;border-radius:6px;font-family:inherit}
+.drawer .commits.full.movable .commit{grid-template-columns:62px 44px 1fr auto auto;align-items:center}
+.pick{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:13px;max-width:100%}
+.pick:focus-visible{outline:2px solid var(--accent);outline-offset:0}
+.move-form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 8px 62px;padding:8px 10px;background:var(--surface2);border-radius:8px;font:13px/1.4 inherit;font-family:system-ui,sans-serif}
+.move-form[hidden]{display:none}
+.move-form label{display:flex;gap:6px;align-items:center;color:var(--muted)}
+.src{font-size:12px;color:var(--muted);margin-left:6px}
 .why-form input:focus-visible,.compose textarea:focus-visible{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
 .why-form input{flex:1;min-width:180px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
 .compose{display:grid;gap:6px;margin-bottom:12px}
@@ -366,9 +374,10 @@ function delta(cur, prev) {
 }
 
 // ---- rendering pieces
-function commitRows(cs) {
+function commitRows(cs, owner) {   // owner: the to-do task whose panel this is (editable mode adds "Move…")
   return cs.slice().sort((a,b) => a.date.localeCompare(b.date)).map(c =>
-    `<div class="commit"><span>${c.sha.slice(0,7)}</span><span class="t">${c.time}</span><span class="s" title="${esc(c.subject)}">${esc(c.subject)}</span><span class="d"><span class="add">+${c.ins}</span> <span class="del">-${c.del}</span></span></div>`).join("");
+    `<div class="commit"><span>${c.sha.slice(0,7)}</span><span class="t">${c.time}</span><span class="s" title="${esc(c.subject)}">${esc(c.subject)}</span><span class="d"><span class="add">+${c.ins}</span> <span class="del">-${c.del}</span></span>${owner ? `<button class="btn xs" type="button" data-move="${esc(c.sha)}" aria-label="Move commit ${c.sha.slice(0,7)} to another task">Move…</button>` : ""}</div>` +
+    (owner ? moveForm(c, owner) : "")).join("");
 }
 function taskHTML(t, showDate) {
   const det = t.details.length ? `<ul>${t.details.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : "";
@@ -504,11 +513,12 @@ function todoDetail(i) {
   else if (i.status === "in_progress") facts.push(["Running", dur(start, new Date().toISOString())]);
   else if (i.status === "paused") facts.push(["Paused", `${fmtStamp(i.paused_at)} (${ago(i.paused_at)})`]);
   if ((i.pauses || []).length) facts.push(["Earlier pauses", String(i.pauses.length)]);
+  if (i.project && i.status !== "todo") facts.push(["Branch", branchHTML(i)]);
   if (i.cs.length) facts.push(["Commits", `${i.cs.length} · <span class="add">+${sum(i.cs,c=>c.ins)}</span> <span class="del">-${sum(i.cs,c=>c.del)}</span>`]);
   let h = (EDIT ? actionsHTML(i) : "") + `<dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>`;
   if (i.plan) h += `<h3>Plan</h3><code>${esc(i.plan)}</code>`;
   h += `<h3>Notes · ${i.notes.length}</h3>` + (EDIT ? `<form class="compose" data-id="${esc(i.id)}"><textarea id="note-text" maxlength="2000" placeholder="Add a note…" aria-label="New note"></textarea><div class="bar2"><span>⌘ Enter to add</span><button class="btn sm" type="submit">Add note</button></div><div class="err" role="alert"></div></form>` : "") + (i.notes.length ? `<ol class="tl">${i.notes.slice().reverse().map(n => `<li><span class="when">${fmtStamp(n.at)}</span>${esc(n.text)}</li>`).join("")}</ol>` : `<div class="tag">No notes.</div>`);
-  if (i.project && i.status !== "todo") h += `<h3>Commits while open · ${i.cs.length}</h3>` + (i.cs.length ? `<div class="commits full">${commitRows(i.cs)}</div>` : `<div class="tag">No commits in ${esc(where(i))} between start and ${i.closed_at ? "finish" : "now"}${(i.pauses || []).length || i.paused_at ? " (time spent paused doesn't count)" : ""}.</div>`);
+  if (i.project && i.status !== "todo") h += `<h3>Commits · ${i.cs.length}</h3>` + (i.cs.length ? `<div class="commits full${EDIT ? " movable" : ""}">${commitRows(i.cs, EDIT ? i : null)}</div>` : `<div class="tag">No commits in ${esc(where(i))} between start and ${i.closed_at ? "finish" : "now"}${(i.pauses || []).length || i.paused_at ? " (time spent paused doesn't count)" : ""}.</div>`);
   return h;
 }
 function taskDetail(t) {
@@ -707,6 +717,40 @@ document.addEventListener("keydown", e => {
   else if (e.key === "/") { e.preventDefault(); q.focus(); }
   else if (e.key === "n" && EDIT) { e.preventDefault(); if (state.view !== "current") setView("current"); document.getElementById("qa-title").focus(); }
 });
+// ---- branch + move (step 3): which commits belong to a task
+const SOURCE = {manual: "set by you", auto: "recorded at start", inferred: "worked out from its commits"};
+function branchChoices(i) {   // branches of the task's repo(s) used within a week of its dates
+  const rps = uniq(commits.filter(c => c.project === i.project && (!i.repo || c.repo === i.repo)).map(c => c.repo_path));
+  const from = new Date(new Date(i.started_at || i.created_at) - 7 * 864e5).toISOString(), to = new Date((i.closed_at ? new Date(i.closed_at) : new Date()).getTime() + 7 * 864e5).toISOString();
+  const out = [];
+  rps.forEach(rp => ((DATA.branches || {})[rp] || []).forEach(b => {
+    const cur = i.branch_effective && i.branch_effective.repo === rp && i.branch_effective.branch === b.branch;
+    if (cur || (b.last >= from && b.first <= to)) out.push({rp, ...b});
+  }));
+  return out;
+}
+function branchHTML(i) {
+  const e = i.branch_effective;
+  const shown = e ? `<code>${esc(e.branch)}</code><span class="src">${SOURCE[e.source]}</span>` : `none<span class="src">gets its dates' commits that no other task claims</span>`;
+  if (!EDIT) return shown;
+  const manual = i.branch_source === "manual", many = !i.repo;
+  const opt = (v, label, sel) => `<option value="${esc(v)}"${sel ? " selected" : ""}>${esc(label)}</option>`;
+  const auto = opt("auto", "Automatic" + (!manual && e ? ` (${e.branch})` : !manual ? " (none found)" : ""), !manual);
+  const opts = branchChoices(i).map(b => opt(b.rp + "|" + b.branch, (many ? b.rp.split("/").pop() + " · " : "") + `${b.branch} · ${pl(b.count, "commit")}`,
+    manual && i.branch === b.branch && i.branch_repo === b.rp)).join("");
+  return `<select class="pick" data-branch-for="${esc(i.id)}" aria-label="Branch for ${esc(i.id)}">${auto}${opts}${opt("none", "No branch (only commits no other task claims)", manual && !i.branch)}</select>`;
+}
+function moveForm(c, owner) {
+  const d30 = new Date(Date.now() - 30 * 864e5).toISOString(), others = todo.filter(t => t.id !== owner.id);
+  const same = others.filter(t => t.project === owner.project);
+  const group = (label, list) => list.length ? `<optgroup label="${esc(label)}">${list.map(t => `<option value="${esc(t.id)}">${esc(t.id)} · ${esc(t.title.slice(0, 60))}</option>`).join("")}</optgroup>` : "";
+  const open = same.filter(t => ["todo", "in_progress", "paused"].includes(t.status)), recent = same.filter(t => !open.includes(t) && (t.closed_at || "") >= d30);
+  const rest = others.filter(t => !open.includes(t) && !recent.includes(t));
+  return `<form class="move-form" data-sha="${esc(c.sha)}" data-owner="${esc(owner.id)}" hidden>
+    <select class="pick" aria-label="Move ${c.sha.slice(0,7)} to"><option value="">Move to…</option>${group("This project · open", open)}${group("This project · finished in the last 30 days", recent)}${group("Other tasks", rest)}<option value="none">No task</option><option value="auto">Automatic</option></select>
+    <label><input type="checkbox"> keep it on ${esc(owner.id)} too</label><button class="btn sm primary" type="submit">Move</button><span class="err" role="alert"></span></form>`;
+}
+
 // ---- editing: only when served by `tracker` (server.py writes a per-run token into the page)
 function actionsHTML(i) {
   const b = (act, label, cls = "") => `<button class="btn sm ${cls}" data-act="${act}" data-id="${esc(i.id)}">${label}</button>`;
@@ -717,14 +761,14 @@ function actionsHTML(i) {
   return `<div class="acts">${set.join("")}<div class="err" role="alert"></div></div>` +
     `<form class="why-form" data-id="${esc(i.id)}" hidden><input id="why-text" maxlength="2000" placeholder="Why is it paused? (optional)" aria-label="Pause reason"><button class="btn sm warn" type="submit">Pause</button></form>`;
 }
-const DONE_WORD = {start: "Started", done: "Marked done", drop: "Dropped", pause: "Paused", note: "Note added to"};
+const DONE_WORD = {start: "Started", done: "Marked done", drop: "Dropped", pause: "Paused", note: "Note added to", branch: "Branch set for", move: "Commit moved from"};
 async function send(body, errEl, buttons) {
   buttons.forEach(x => x.disabled = true); errEl.textContent = "";
   try {
     const r = await fetch("/api/todo", {method: "POST", headers: {"Content-Type": "application/json", "X-Tracker-Token": TOKEN}, body: JSON.stringify(body)});
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || "The tracker answered " + r.status);
-    const id = body.id || (j.out || "").trim();
+    const id = body.id || body.from || (j.out || "").trim();
     const word = body.action === "start" && body.resume ? "Resumed" : DONE_WORD[body.action] || "Added";
     try { sessionStorage.setItem("after", JSON.stringify({id, reopen: drawerOpen() && !!body.id, toast: `${word} ${id}`})); } catch (_) {}
     location.reload();   // todo.py has already rebuilt the page
@@ -764,6 +808,24 @@ if (EDIT) {
       if (text) send({action: "note", id: f.dataset.id, text}, f.querySelector(".err"), [...f.querySelectorAll("button")]); }
   });
   document.addEventListener("keydown", e => { if (e.key === "Enter" && e.metaKey && e.target.id === "note-text") { e.preventDefault(); e.target.form.requestSubmit(); } });
+  document.addEventListener("change", e => {
+    const p = e.target.closest("[data-branch-for]"); if (!p) return;
+    const v = p.value, body = {action: "branch", id: p.dataset.branchFor};
+    if (v === "auto" || v === "none") body.branch = v; else { const k = v.indexOf("|"); body.repo = v.slice(0, k); body.branch = v.slice(k + 1); }
+    send(body, document.querySelector(".acts .err") || document.getElementById("qa-err"), [p]);
+  });
+  document.addEventListener("click", e => {
+    const m = e.target.closest("[data-move]"); if (!m) return;
+    const f = m.closest(".commit").nextElementSibling; if (!f || !f.classList.contains("move-form")) return;
+    f.hidden = !f.hidden; if (!f.hidden) f.querySelector("select").focus();
+  });
+  document.addEventListener("submit", e => {
+    const f = e.target; if (!f.classList.contains("move-form")) return; e.preventDefault();
+    const v = f.querySelector("select").value, keep = f.querySelector("input[type=checkbox]").checked, err = f.querySelector(".err");
+    if (!v) { err.textContent = "Pick where it goes."; return; }
+    const ids = v === "none" || v === "auto" ? v : keep ? [f.dataset.owner, v] : [v];
+    send({action: "move", sha: f.dataset.sha, ids, from: f.dataset.owner}, err, [...f.querySelectorAll("button, select")]);
+  });
 } else {
   document.getElementById("key-n").hidden = true;
   document.getElementById("mode").innerHTML = `read-only · run <code>tracker</code> to edit`;

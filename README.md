@@ -52,6 +52,8 @@ tracker add "Title" -p myproject -r my-repo [--plan path]   # prints an id, e.g.
 tracker add "Title" --path ~/code/myproject/my-repo     # project and repo worked out from the folder
 tracker start t-0007 | tracker done t-0007 | tracker drop t-0007
 tracker pause t-0007 "waiting on review"     # reason optional; `tracker start t-0007` resumes
+tracker branch t-0007 feat/x | --none | --auto   # correct which branch a task's commits come from
+tracker move 1d8bb86 t-0007 [t-0008] | --none | --auto   # correct which task(s) a commit belongs to
 tracker note t-0007 "tests passing"
 tracker todo [--all]
 tracker --version
@@ -61,7 +63,7 @@ Other commands: `scan [--days N] [--since DATE]`, `summarise [--backfill-threads
 
 - **Views:** Current (board), Day (one day), Week and Month. Use ◀ ▶ (or `←` `→`) to move between periods; the Day view skips days with no commits. The numbers cover the period on screen, show the change against the previous period, and follow the project filter and search.
 - **Threads:** related tasks across days are grouped into threads (e.g. "Billing: invoice export"). The Week and Month views list threads, and the Month view adds the top 5 as Highlights. Threads are assigned automatically by the summariser.
-- **To-do ↔ commits:** a to-do task is linked to the commits in its repo (or whole project if no repo) made between `tracker start` and `tracker done`. `tracker done` rescans git first, so recent commits count.
+- **To-do ↔ commits:** a to-do task is linked to the commits in its repo (or whole project if no repo) made between `tracker start` and `tracker done` **on its branch**. The scanner remembers which branch each commit was made on (from git's reflogs, even after the branch is merged and deleted), a task records the branch checked out when it is started (`tracker start <id> --path <folder>` for a worktree), and when two tasks overlap in one repo each gets its own branch's commits. Commits of unknown branch fall back to the dates. If it gets one wrong, fix it in the task's details panel: pick its branch, or "Move…" a commit to other task(s) (`tracker branch`, `tracker move` on the command line). `tracker done` rescans git first, so recent commits count.
 - **Copy standup / Copy report:** standup text (Yesterday / Today / Blockers) or a Markdown report of the period on screen.
 - **Current board:** In progress and To do at the top, then a Paused shelf (each card shows why it was paused), then finished tasks as one-line rows grouped by day (today and yesterday open, older days folded).
 - **Pausing:** for work put aside after it started. A paused task stays on the board and in `tracker todo`, isn't listed in standup "Today", and commits made while it's paused aren't linked to it.

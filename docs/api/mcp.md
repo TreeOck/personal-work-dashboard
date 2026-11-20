@@ -32,13 +32,17 @@ every error.
 |---|---|---|
 | `tracker_todo` | `all` (boolean, optional: include done/dropped) | one line per task (`tracker todo` format), or `no open tasks` |
 | `tracker_add` | `title` (string, required), `path` (string, required: the agent's workspace folder), `project`, `repo`, `plan` (strings, optional) | first line the new id (`t-0007`), then the task line; a note if `path` is outside the configured root |
-| `tracker_start` / `tracker_done` / `tracker_drop` | `id` (string, required) | the task line, or `already <status>: …` |
+| `tracker_start` | `id` (required), `path` (optional: the workspace folder; its checked-out git branch is recorded for the task) | the task line, or `already in_progress: …` |
+| `tracker_done` / `tracker_drop` | `id` (string, required) | the task line, or `already <status>: …` |
 | `tracker_pause` | `id` (required), `reason` (optional; saved as a `Paused: …` note) | the task line, or `already paused: …` |
 | `tracker_note` | `id`, `text` (both required) | the task line |
+| `tracker_branch` | `id`, `branch` (name, `"none"` = no branch, `"auto"`), optional `repo` | the task line + `branch: …`. A correction, rarely needed |
+| `tracker_move` | `sha` (≥4 hex chars), and `ids` (task ids; empty list = no task) or `auto: true` (one of them is required) | `<repo_path>:<sha> -> …`. A correction, rarely needed |
 
 **Project and repo come from `path`** (the server's own working folder is unreliable: apps start it in `/`, `~` or the
 project): project = the first folder under the configured root, repo = the first git repo at most 3 levels below the
-root (the scanner's rule). `project` / `repo` arguments override them. A path outside the root gives a task with no
+root (the scanner's rule). `project` / `repo` arguments override them. The git branch checked out in `path` is
+recorded for the task (see `docs/schema/todo-json.md`), which is how its commits are linked. A path outside the root gives a task with no
 project.
 
 ## Tool errors

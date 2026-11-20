@@ -10,7 +10,19 @@ from importlib import resources
 
 from . import __version__, config, files, inks, paths
 from .errors import TrackerError
-from .links import link
+from .links import assign, branch_info
+
+
+def _branch_list(commits):
+    """repo path -> the branches its commits were made on, with first/last commit date and count (for the page's
+    branch picker)."""
+    seen = {}
+    for c in commits:
+        if c.get("branch") and c.get("repo_path"):
+            b = seen.setdefault(c["repo_path"], {}).setdefault(c["branch"], {"branch": c["branch"], "first": c["date"],
+                                                                             "last": c["date"], "count": 0})
+            b["first"], b["last"], b["count"] = min(b["first"], c["date"]), max(b["last"], c["date"]), b["count"] + 1
+    return {rp: sorted(bs.values(), key=lambda b: b["last"], reverse=True) for rp, bs in sorted(seen.items())}
 
 
 def _render(html, blob, name):
@@ -31,10 +43,16 @@ def build():
             raise TrackerError("no commits.json yet -- run: tracker scan")
         data["timezone"], data["version"] = config.load().timezone, __version__
         data["tasks"] = files.read_json(paths.file("tasks.json"), {"tasks": []})["tasks"]
-        data["todo"] = files.read_json(paths.file("todo.json"), {"items": []})["items"]
+        todo_doc = files.read_json(paths.file("todo.json"), {"items": []})
+        data["todo"] = todo_doc["items"]
         _now = datetime.now().astimezone()
-        for it in data["todo"]:  # commits made while each current-task was open (computed fresh every build)
-            it["linked"] = [c["repo_path"] + ":" + c["sha"] for c in link(it, data["commits"], _now)]
+        # each task's commits, by branch and date window plus the owner's hand moves (computed fresh every build)
+        linked = assign(data["todo"], data["commits"], _now, todo_doc.get("moves"))
+        branches = branch_info(data["todo"], data["commits"], _now)
+        for it in data["todo"]:
+            it["linked"] = [c["repo_path"] + ":" + c["sha"] for c in linked[it["id"]]]
+            it["branch_effective"] = branches[it["id"]]
+        data["branches"] = _branch_list(data["commits"])
         projects = {c["project"] for c in data["commits"]} | {t["project"] for t in data["tasks"]} | {i["project"] for i in data["todo"] if i.get("project")}
         try:   # inks only colour the desk: a broken ink file must never stop the dashboard from building
             _assigned = inks.assign(sorted(projects), inks.load_assignments())

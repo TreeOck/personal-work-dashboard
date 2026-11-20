@@ -32,7 +32,9 @@ TOOLS = [
          "required": ["title", "path"]}},
     {"name": "tracker_start",
      "description": "Mark a tracker task as in progress once you are actually working on it (also resumes a paused task).",
-     "inputSchema": {"type": "object", "properties": dict(_ID), "required": ["id"]}},
+     "inputSchema": {"type": "object", "properties": dict(_ID, path={"type": "string", "description":
+         "The absolute path of your workspace folder; the git branch checked out there is recorded for the task."}),
+         "required": ["id"]}},
     {"name": "tracker_note",
      "description": "Add a progress note to a tracker task at a notable milestone (plan approved, tests passing, PR opened).",
      "inputSchema": {"type": "object", "properties": dict(_ID, text={"type": "string", "description": "The note."}),
@@ -47,6 +49,23 @@ TOOLS = [
     {"name": "tracker_drop",
      "description": "Mark a tracker task as dropped when the work is abandoned or superseded.",
      "inputSchema": {"type": "object", "properties": dict(_ID), "required": ["id"]}},
+]
+TOOLS += [
+    {"name": "tracker_branch",
+     "description": "Correction, rarely needed: set which git branch a tracker task's commits come from, when the "
+                    "automatic choice is wrong. branch \"none\" = no branch (only commits in its dates that no other task claims); \"auto\" goes back to automatic.",
+     "inputSchema": {"type": "object", "properties": dict(_ID,
+         branch={"type": "string", "description": "Branch name, \"none\" or \"auto\"."},
+         repo={"type": "string", "description": "Repo path under the root (only needed for a task without a repo)."}),
+         "required": ["id", "branch"]}},
+    {"name": "tracker_move",
+     "description": "Correction, rarely needed: say which tracker task(s) a commit belongs to, overriding the "
+                    "automatic linking. An empty ids list means no task; auto=true goes back to automatic.",
+     "inputSchema": {"type": "object", "properties": {
+         "sha": {"type": "string", "description": "The commit hash (at least 4 characters)."},
+         "ids": {"type": "array", "items": {"type": "string"}, "description": "Task ids, e.g. [\"t-0007\"]."},
+         "auto": {"type": "boolean", "description": "Go back to automatic linking for this commit."}},
+         "required": ["sha"]}},
 ]
 _SCHEMAS = {t["name"]: t["inputSchema"] for t in TOOLS}
 
@@ -72,6 +91,8 @@ def _check_args(name, args):
             raise TrackerError("missing required argument: %s" % key)
     for key, value in args.items():
         want = schema["properties"].get(key, {}).get("type")
+        if want == "array" and not (isinstance(value, list) and all(isinstance(v, str) for v in value)):
+            raise TrackerError("argument %s must be a list of strings" % key)
         if want == "string" and not isinstance(value, str) or want == "boolean" and not isinstance(value, bool):
             raise TrackerError("argument %s must be a %s" % (key, want))
 
@@ -88,17 +109,28 @@ def _run_tool(name, args):
         root = config.load().root
         project, repo = locate.project_repo_for(args["path"], root)
         hint = "" if project else "\nnote: %s is not under the tracker's root folder %s, so the task has no project" % (args["path"], root)
-        item = todo.add(args["title"], args.get("project") or project, args.get("repo") or repo, args.get("plan"))
+        item = todo.add(args["title"], args.get("project") or project, args.get("repo") or repo, args.get("plan"),
+                        args["path"])
         return "%s\n%s%s" % (item["id"], todo.fmt(item), hint)
     if name in ("tracker_start", "tracker_done", "tracker_drop"):
         action = name.split("_")[1]
-        item, changed = todo.set_status(args["id"], action)
+        item, changed = todo.set_status(args["id"], action, args.get("path") if action == "start" else None)
         return _status_line(item, changed, {"start": "in_progress", "done": "done", "drop": "dropped"}[action])
     if name == "tracker_pause":
         item, changed = todo.pause(args["id"], args.get("reason", ""))
         return _status_line(item, changed, "paused")
     if name == "tracker_note":
         return todo.fmt(todo.note(args["id"], args["text"]))
+    if name == "tracker_branch":
+        b = args["branch"]
+        it = todo.set_branch(args["id"], None if b == "none" else b, args.get("repo"))
+        return "%s\nbranch: %s" % (todo.fmt(it), it.get("branch") or ("dates only" if it.get("branch_source") else "automatic"))
+    if name == "tracker_move":
+        if "ids" not in args and not args.get("auto"):
+            raise TrackerError("give ids (an empty list means no task) or auto: true")
+        target = "auto" if args.get("auto") else args.get("ids") or None
+        key = todo.move(args["sha"], target)
+        return "%s -> %s" % (key, "automatic" if target == "auto" else ", ".join(target or []) or "no task")
     raise AssertionError(name)
 
 

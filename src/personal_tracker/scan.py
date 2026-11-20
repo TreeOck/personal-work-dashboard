@@ -4,6 +4,7 @@ Default window is 14 days. Existing commits.json is merged by hash, so history
 older than the window is kept once it has been seen.
 """
 import os
+import re
 import shutil
 import subprocess
 from datetime import datetime, timedelta
@@ -75,6 +76,76 @@ def scan_repo(repo, since, patterns):
     return commits
 
 
+def default_branch(repo):
+    """main, else master, else the branch origin/HEAD points to; None if none of them exists."""
+    for name in ("main", "master"):
+        if git(repo, "rev-parse", "--verify", "-q", "refs/heads/" + name).strip():
+            return name
+    ref = git(repo, "symbolic-ref", "-q", "refs/remotes/origin/HEAD").strip()
+    return ref.split("/", 3)[-1] if ref.startswith("refs/remotes/origin/") else None
+
+
+def _checkouts(repo):
+    """The repo's own folder and every linked worktree that still exists."""
+    found = [line[len("worktree "):] for line in git(repo, "worktree", "list", "--porcelain").splitlines()
+             if line.startswith("worktree ")]
+    return [p for p in found if os.path.isdir(p)] or [repo]
+
+
+def made_on(repo, default):
+    """full sha -> the branch it was made on, for commits that can still be told apart.
+    Best source: each branch's reflog, whose "commit" entries are exactly the commits made on it (also from other
+    worktrees). Next: each checkout's HEAD log, read in order (a commit belongs to the branch last checked out), which
+    still remembers branches deleted since. Last: a branch that has the commit while the default branch doesn't."""
+    branches = [b.strip() for b in git(repo, "for-each-ref", "--format=%(refname:short)", "refs/heads/").splitlines()
+                if b.strip() and b.strip() != default]
+    out = {}
+    for b in branches:
+        for line in git(repo, "reflog", "show", "--format=%H" + FIELD + "%gs", "refs/heads/" + b, "--").splitlines():
+            sha, _, subject = line.partition(FIELD)
+            if subject.startswith(("commit", "cherry-pick")) and sha not in out:
+                out[sha] = b
+    tags = set(git(repo, "tag", "-l").split())
+    remotes = tuple(r + "/" for r in git(repo, "remote").split())
+
+    def is_branch(target):   # `checkout X` also logs detaching onto a sha, HEAD, a tag or a remote branch
+        return not (target == "HEAD" or re.fullmatch(r"[0-9a-f]{7,40}", target) or target in tags
+                    or (remotes and target.startswith(remotes)))
+
+    for checkout in _checkouts(repo):   # HEAD logs keep branches deleted long ago (90 days by default)
+        current, rebasing = None, None
+        entries = git(checkout, "reflog", "show", "--format=%H" + FIELD + "%gs", "HEAD", "--").splitlines()
+        for line in reversed(entries):   # oldest first, following the checkouts
+            sha, _, subject = line.partition(FIELD)
+            step = re.match(r"rebase(?: -[im])? \((\w+)\)", subject)
+            if step:   # a rebase rewrites commits; they belong to the branch it returns to
+                kind = step.group(1)
+                if kind == "start":
+                    rebasing = []
+                elif kind == "finish":
+                    target = subject.rsplit("refs/heads/", 1)[-1].strip() if "refs/heads/" in subject else None
+                    if target and target != default:
+                        for s in rebasing or []:
+                            out.setdefault(s, target)
+                    current, rebasing = target, None
+                elif kind == "abort":
+                    rebasing = None
+                elif rebasing is not None:
+                    rebasing.append(sha)
+            elif rebasing is not None and subject.startswith("commit"):
+                rebasing.append(sha)
+            elif subject.startswith("checkout: moving from "):
+                target = subject.rsplit(" to ", 1)[-1].strip()
+                current = target if is_branch(target) else None
+            elif subject.startswith(("commit", "cherry-pick")) and current and current != default:
+                out.setdefault(sha, current)
+    if default:
+        for b in branches:
+            for sha in git(repo, "rev-list", "refs/heads/%s..refs/heads/%s" % (default, b), "--").split():
+                out.setdefault(sha, b)
+    return out
+
+
 def run(days=14, since=None):
     """Scan every repo under the configured root; returns how many commits commits.json now holds."""
     if not shutil.which("git"):
@@ -91,8 +162,14 @@ def run(days=14, since=None):
     for repo in find_repos(root):
         rel = rel_posix(repo, root)
         project = rel.split("/")[0]
+        made = made_on(repo, default_branch(repo))
+        for (rp, sha), old in existing.items():   # older commits outside this scan's window learn their branch too
+            if rp == rel and not old.get("branch") and sha in made:
+                old["branch"] = made[sha]
         for sha, c in scan_repo(repo, since, patterns).items():
             c.update({"repo_path": rel, "repo": rel.split("/")[-1], "project": project})
+            old = existing.get((rel, sha), {})
+            c["branch"] = old.get("branch") or made.get(sha)   # once known, kept: the branch may be merged and deleted later
             existing[(rel, sha)] = c  # same hash in same repo = one commit
 
     commits = sorted(existing.values(), key=lambda c: c["date"])
