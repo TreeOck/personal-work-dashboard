@@ -1,6 +1,13 @@
 # Changelog
 
-Versions follow `pyproject.toml` (the only place the version is written). Before 1.0 anything may still change.
+Versions follow `pyproject.toml` (the only place the version is written), with semantic versioning from 1.0.
+
+## 1.0.0 – 2026-11-20
+
+First stable release. No code changes since 0.10.0; this marks the three v1.0 steps as done:
+- **Any OS:** installable Python package for macOS, Windows and Linux (0.8.0).
+- **Any agent:** `tracker mcp` and `tracker setup` for Claude Code, Cursor and Antigravity (0.9.0).
+- **Right commits on the right task:** linking by the branch each commit was made on, with corrections from the dashboard (0.10.0).
 
 ## 0.10.0 – 2026-11-19
 
