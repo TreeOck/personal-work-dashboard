@@ -2,7 +2,7 @@
 
 ## Package (`src/personal_tracker/`)
 ```
-cli.py        the `tracker` command (argparse); every subcommand lands here
+cli.py        the `tracker` command (argparse); every subcommand lands here, plus the interactive first run after `init`
 todo.py       current-tasks list: add / start / pause / done / drop / note  (locks, atomic writes, rebuild)
 scan.py       git -> commits.json            summarise.py   commits -> tasks.json via the configured summariser
 links.py      commits <-> to-do tasks (by branch, window, hand moves)        build.py       JSON -> dashboard.html / desk.html

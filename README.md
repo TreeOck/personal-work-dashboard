@@ -31,13 +31,26 @@ The latest unreleased code: `pipx install git+https://github.com/TreeOck/persona
 ## First run
 
 ```bash
-tracker init                  # asks for the folder holding your repos and the email(s) you commit as
-tracker scan --days 30        # first scan: choose how far back to go
-tracker                       # opens the dashboard
-tracker schedule on           # optional: refresh every day at 17:00 (--at HH:MM to change)
+tracker init
 ```
 
-`tracker init` can also take everything as flags (`--root` and `--email` (both repeatable), `--timezone`, `--summariser "<command>"` or `--no-summariser`), and refuses to overwrite an existing config without `--force`.
+That one command does the whole first run. It asks for the folder holding your repos, the email(s) you commit as, the timezone and the summariser, writes the config, and then goes on to:
+
+1. **Scan:** "how many days of git history?" (default 30; `0` skips). Same as `tracker scan --days N`.
+2. **Daily refresh:** `Y` (17:00), `n`, or a time like `09:30`. Same as `tracker schedule on --at HH:MM`.
+3. **Connect an AI tool:** `claude-code`, `cursor`, `antigravity` or `none` (default `claude-code` when `claude` is on your PATH). Same as `tracker setup <tool>`, including its question about summaries (skipped when the summariser you just chose is already that tool's).
+4. **Open the dashboard.** Same as `tracker`.
+
+A step that fails (no git, Antigravity open, a scheduler error) prints the command to retry it, and the remaining steps still run. Ctrl-C keeps the config and any finished steps. Every step is still its own command, so you can do any of them again later:
+
+```bash
+tracker scan --days 30        # scan (further back)
+tracker schedule on           # daily refresh at 17:00 (--at HH:MM to change)
+tracker setup claude-code     # connect an AI tool
+tracker                       # open the dashboard
+```
+
+`tracker init` can also take the config answers as flags (`--root` and `--email` (both repeatable), `--timezone`, `--summariser "<command>"` or `--no-summariser`), and refuses to overwrite an existing config without `--force`. Without a terminal (scripts, agents), it only writes the config and prints the next commands.
 
 Daily refresh: `tracker schedule on|off|status` uses launchd on macOS (it runs on wake if the Mac was asleep, and can reach the Keychain where Claude Code keeps its login, which cron cannot) and Task Scheduler on Windows. On Linux it prints a crontab line to add with `crontab -e`.
 

@@ -2,6 +2,14 @@
 
 Versions follow `pyproject.toml` (the only place the version is written), with semantic versioning from 1.0.
 
+## 1.2.0 – 2026-11-26
+
+### Added
+- One-command first run: after an interactive `tracker init` writes the config, it goes on to ask about the first scan (days back, default 30, `0` skips), the daily refresh (`Y` = 17:00, `n`, or `HH:MM`), connecting an AI tool (`claude-code` / `cursor` / `antigravity` / `none`), and then opens the dashboard. Each step is the same code as `tracker scan`, `tracker schedule on`, `tracker setup <tool>` and `tracker`, which all stay as they are. Bad answers are asked again. A step that fails prints its retry command and the rest still run. Ctrl-C or end-of-file keeps the config and the steps already done, and prints the remaining commands. The summaries question from `tracker setup` is skipped when the summariser chosen during init is already that tool's.
+
+### Unchanged
+- `tracker init` without a terminal (scripts, agents, Windows `NUL` stdin) only writes the config, as before. Its closing hint now also mentions `tracker schedule on` and `tracker setup`.
+
 ## 1.1.0 – 2026-11-26
 
 ### Added
