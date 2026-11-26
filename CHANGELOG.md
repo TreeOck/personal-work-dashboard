@@ -2,6 +2,14 @@
 
 Versions follow `pyproject.toml` (the only place the version is written), with semantic versioning from 1.0.
 
+## 1.0.3 – 2026-11-26
+
+### Fixed
+- `tracker scan` now rebuilds the dashboard, and `tracker` builds it if it doesn't exist yet. Before, following the setup steps (`tracker init`, `tracker scan`, `tracker`) opened "dashboard.html not built yet", and a rescan didn't show on the page until something else rebuilt it.
+
+### Added
+- Several root folders: `tracker init --root ~/code --root ~/OneDrive/Work` (or `"roots": [...]` in `config.json`; the interactive question takes several separated by `;`). Every repo under any of them is scanned once.
+
 ## 1.0.2 – 2026-11-26
 
 ### Fixed

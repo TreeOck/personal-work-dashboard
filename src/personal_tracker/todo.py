@@ -72,9 +72,9 @@ def _record_branch(doc, it, path, cfg):
     if it.get("branch_source") or not it.get("project") or not it.get("repo"):
         return
     if path is None:
-        folder = locate.repo_folder(cfg.root, it["project"], it["repo"])
+        folder = locate.repo_folder(cfg.roots, it["project"], it["repo"])
         path = str(folder) if folder else None
-    found = locate.current_branch(path, cfg.root) if path else None
+    found = locate.current_branch(path, cfg.roots) if path else None
     if not found:
         return
     repo_path, branch = found
@@ -85,7 +85,7 @@ def _record_branch(doc, it, path, cfg):
         # another task is open in this repo: a branch that already has commits of its own (on no other branch) is
         # probably that task's (started before `git checkout -b`); one fresh from `checkout -b` has none yet
         from . import scan
-        own = scan.git(str(cfg.root / repo_path), "rev-list", "--count", "refs/heads/" + branch, "--not",
+        own = scan.git(str(locate.repo_dir(cfg.roots, repo_path) or repo_path), "rev-list", "--count", "refs/heads/" + branch, "--not",
                        "--exclude=" + branch, "--branches", "--")   # --exclude takes the bare name with --branches
         if own.strip() != "0":
             return
@@ -97,8 +97,8 @@ def add(title, project=None, repo=None, plan=None, path=None):
     if not title:
         raise TrackerError("title can't be empty")
     cfg = config.load()
-    if project and not (cfg.root / project).is_dir():
-        print("warning: %s doesn't exist; keeping it anyway" % (cfg.root / project), file=sys.stderr)
+    if project and not any((r / project).is_dir() for r in cfg.roots):
+        print("warning: no folder %s under %s; keeping it anyway" % (project, ", ".join(str(r) for r in cfg.roots)), file=sys.stderr)
     with locked() as doc:
         nxt = 1 + max([int(i["id"][2:]) for i in doc["items"]] or [0])
         it = {"id": "t-%04d" % nxt, "title": title, "project": project, "repo": repo,

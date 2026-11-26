@@ -41,6 +41,7 @@ In the data folder (`$TRACKER_HOME`, default `~/.personal-tracker`). Written by 
 | Field | Type | Notes |
 |---|---|---|
 | `root` | string | Folder containing your git repos; `~` is expanded when read |
+| `roots` | list of strings | **1.0.3** — instead of `root`, several such folders (written by `tracker init --root A --root B`). Every repo under any of them is scanned once (if roots overlap, the first listed wins); a *project* is the first folder under whichever root holds it, so equal names in two roots count as one project |
 | `author_emails` | list of strings | At least one; every email you commit as |
 | `timezone` | IANA name or `null` | Day boundaries (Python) and display (page). `null` = this computer's zone. Invalid names are rejected |
 | `summariser` | list of strings or `null` | Command + arguments; prompt on stdin (UTF-8), JSON on stdout (UTF-8). Resolved with `shutil.which`. `null` = no summaries. Runs with its working folder set to the empty `<data folder>/summariser/` |

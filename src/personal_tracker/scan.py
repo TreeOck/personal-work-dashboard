@@ -151,7 +151,7 @@ def run(days=14, since=None):
     if not shutil.which("git"):
         raise TrackerError("git not found on PATH -- install git and try again")
     cfg = config.load()
-    root, patterns = str(cfg.root), cfg.author_emails
+    patterns = cfg.author_emails
     since = since or (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
     out = paths.file("commits.json")
 
@@ -159,7 +159,11 @@ def run(days=14, since=None):
     for c in (files.read_json(out) or {}).get("commits", []):
         existing[(c["repo_path"], c["sha"])] = c
 
-    for repo in find_repos(root):
+    seen = set()
+    for root, repo in ((str(r), repo) for r in cfg.roots for repo in find_repos(str(r))):
+        if os.path.realpath(repo) in seen:   # roots that overlap: scan each repo once
+            continue
+        seen.add(os.path.realpath(repo))
         rel = rel_posix(repo, root)
         project = rel.split("/")[0]
         made = made_on(repo, default_branch(repo))

@@ -37,7 +37,7 @@ tracker                       # opens the dashboard
 tracker schedule on           # optional: refresh every day at 17:00 (--at HH:MM to change)
 ```
 
-`tracker init` can also take everything as flags (`--root`, `--email` (repeatable), `--timezone`, `--summariser "<command>"` or `--no-summariser`), and refuses to overwrite an existing config without `--force`.
+`tracker init` can also take everything as flags (`--root` and `--email` (both repeatable), `--timezone`, `--summariser "<command>"` or `--no-summariser`), and refuses to overwrite an existing config without `--force`.
 
 Daily refresh: `tracker schedule on|off|status` uses launchd on macOS (it runs on wake if the Mac was asleep, and can reach the Keychain where Claude Code keeps its login, which cron cannot) and Task Scheduler on Windows. On Linux it prints a crontab line to add with `crontab -e`.
 
@@ -71,7 +71,7 @@ Other commands: `scan [--days N] [--since DATE]`, `summarise [--backfill-threads
 - **Details panel:** click any card or row, on any view, to open a side panel with all of its notes, start/finish times, the plan, every commit and (for summarised tasks) the other tasks in its thread. `Esc` closes it.
 - **Month heatmap:** hover over a day to see its tasks, then click to open it in the Day view (on touch screens, tap once to preview and again to open).
 - **Keys:** `c` `d` `w` `m` switch views, `←` `→` change period, `/` search, `n` new task (when editable), `Esc` close / clear. Search matches task ids too: typing `t-0027` shows that card (from any view), and while searching the Done log covers every finished task, not just the last 7 days.
-- A *project* is a top-level folder under `root`, and a *repo* is a git repo inside it, up to 3 levels deep.
+- A *project* is a top-level folder under a root folder (you can have several), and a *repo* is a git repo inside it, up to 3 levels deep.
 
 ## Use it from your AI agent
 
@@ -128,7 +128,7 @@ Everything lives in one folder: `$TRACKER_HOME`, else `~/.personal-tracker` (`%U
  "summariser": ["claude", "-p", "--model", "sonnet", "--tools", "", "--no-session-persistence"]}
 ```
 
-- `root`: the folder with your repos. A *project* is a top-level folder under it, and a *repo* is a git repo inside it, up to 3 levels deep.
+- `root`: the folder with your repos, or `roots`: a list of such folders (e.g. `["~/code", "~/OneDrive/Work"]`; `tracker init --root A --root B`). A *project* is a top-level folder under one of them, and a *repo* is a git repo inside it, up to 3 levels deep.
 - `author_emails`: every email you commit as.
 - `timezone`: IANA name used for day boundaries. Leave it out (or `null`) to use this computer's timezone.
 - `summariser`: the command and its arguments. It receives the prompt on stdin and must print JSON (UTF-8). `null` turns summaries off.

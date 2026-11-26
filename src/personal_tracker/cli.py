@@ -17,7 +17,7 @@ def build_parser():
     ap.add_argument("--version", action="version", version="tracker " + __version__)
     sub = ap.add_subparsers(dest="cmd")
     n = sub.add_parser("init", help="create the config (asks for anything you don't pass)")
-    n.add_argument("--root", help="folder that contains your git repos"); n.add_argument("--email", action="append", help="an email you commit as (repeatable)")
+    n.add_argument("--root", action="append", help="a folder that contains your git repos (repeatable)"); n.add_argument("--email", action="append", help="an email you commit as (repeatable)")
     n.add_argument("--timezone", help="IANA name for day boundaries, e.g. Europe/London (default: this computer's)")
     n.add_argument("--summariser", help="command that reads a prompt on stdin and prints JSON, e.g. 'claude -p --model sonnet'")
     n.add_argument("--no-summariser", action="store_true"); n.add_argument("--force", action="store_true", help="overwrite an existing config")
@@ -104,10 +104,11 @@ def _ask(prompt):
 
 
 def run_init(args):
-    root, emails, tz = args.root, args.email or [], args.timezone
+    roots, emails, tz = args.root or [], args.email or [], args.timezone
     summariser = [] if args.no_summariser else split_or_none(args.summariser)
     if sys.stdin.isatty():   # ask for whatever wasn't passed; an unanswerable question takes its default
-        root = root or _ask("Folder that contains your git repos (e.g. ~/code): ")
+        if not roots:
+            roots = (_ask("Folder(s) that contain your git repos, several separated by ; (e.g. ~/code): ") or "").split(";")
         if not emails:
             emails = (_ask("Email(s) you commit as, comma-separated: ") or "").split(",")
         if tz is None:
@@ -119,11 +120,12 @@ def run_init(args):
             ans = _ask("Command that writes summaries (prompt on stdin, JSON out), or 'none' [%s]: " % (" ".join(default) if default else "none"))
             ans = (ans or "").strip()
             summariser = [] if ans.lower() == "none" else setup.split_command(ans) if ans else default
-    if not root or not emails:
+    roots = [r.strip() for r in roots if r and r.strip()]
+    if not roots or not emails:
         raise TrackerError("--root and --email are required when not running interactively")
     if summariser is None:
         summariser = setup.default_summariser()
-    path = setup.init(root, emails, tz, summariser or None, args.force)
+    path = setup.init(roots, emails, tz, summariser or None, args.force)
     print("Wrote %s\nNext: tracker scan --days 30   then   tracker" % path)
 
 
@@ -151,7 +153,7 @@ def dispatch(args):
     elif c == "add":
         project, repo = args.project, args.repo
         if args.path:
-            p, r = locate.project_repo_for(args.path, config.load().root)
+            p, r = locate.project_repo_for(args.path, config.load().roots)
             project, repo = project or p, repo or r
         print(todo.add(args.title, project, repo, args.plan, args.path)["id"])
     elif c in ("start", "done", "drop"):
@@ -186,6 +188,8 @@ def dispatch(args):
     elif c == "mcp":
         mcp_server.serve(sys.stdin, sys.stdout)
     elif c in (None, "open"):
+        if not paths.file("dashboard.html").exists():   # first run: nothing has built the page yet
+            build.build()
         server.open_dashboard()
     elif c == "serve":
         server.serve()
@@ -205,6 +209,7 @@ def dispatch(args):
             server.open_dashboard()
     elif c == "scan":
         scan.run(args.days, args.since)
+        build.build()   # so the page shows what was just scanned
     elif c == "summarise":
         summarise.run(args.backfill_threads)
     elif c == "build":

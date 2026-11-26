@@ -35,10 +35,11 @@ def split_command(line):
     return shlex.split(line, posix=os.name != "nt")   # Windows paths contain backslashes
 
 
-def init(root, emails, timezone=None, summariser=None, force=False):
-    root = (root or "").strip()
+def init(roots, emails, timezone=None, summariser=None, force=False):
+    """roots: one folder or a list of them (written as "root", or "roots" when there are several)."""
+    roots = [r.strip() for r in ([roots] if isinstance(roots, str) else roots or []) if r and r.strip()]
     emails = [e.strip() for e in emails if e and e.strip()]
-    if not root:
+    if not roots:
         raise TrackerError("root can't be empty (the folder that contains your git repos)")
     if not emails:
         raise TrackerError("at least one author email is needed (the email(s) you commit as)")
@@ -48,9 +49,11 @@ def init(root, emails, timezone=None, summariser=None, force=False):
     if path.exists() and not force:
         raise TrackerError("%s already exists -- use --force to overwrite it" % path)
     paths.home().mkdir(parents=True, exist_ok=True)
-    files.write_json(path, {"root": root, "author_emails": emails, "timezone": timezone or None, "summariser": summariser or None})
-    if not Path(root).expanduser().is_dir():
-        print("warning: %s doesn't exist yet; keeping it anyway" % Path(root).expanduser(), file=sys.stderr)
+    where = {"root": roots[0]} if len(roots) == 1 else {"roots": roots}
+    files.write_json(path, {**where, "author_emails": emails, "timezone": timezone or None, "summariser": summariser or None})
+    for root in roots:
+        if not Path(root).expanduser().is_dir():
+            print("warning: %s doesn't exist yet; keeping it anyway" % Path(root).expanduser(), file=sys.stderr)
     return path
 
 

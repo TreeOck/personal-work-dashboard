@@ -106,9 +106,10 @@ def _run_tool(name, args):
     if name == "tracker_todo":
         return "\n".join(todo.fmt(i) for i in todo.list_items(args.get("all", False))) or "no open tasks"
     if name == "tracker_add":
-        root = config.load().root
-        project, repo = locate.project_repo_for(args["path"], root)
-        hint = "" if project else "\nnote: %s is not under the tracker's root folder %s, so the task has no project" % (args["path"], root)
+        roots = config.load().roots
+        project, repo = locate.project_repo_for(args["path"], roots)
+        hint = "" if project else "\nnote: %s is not under the tracker's root folder(s) %s, so the task has no project" % (
+            args["path"], ", ".join(str(r) for r in roots))
         item = todo.add(args["title"], args.get("project") or project, args.get("repo") or repo, args.get("plan"),
                         args["path"])
         return "%s\n%s%s" % (item["id"], todo.fmt(item), hint)
