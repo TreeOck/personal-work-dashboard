@@ -8,6 +8,7 @@ Versions follow `pyproject.toml` (the only place the version is written), with s
 - Theme menu in the header: **Auto** (follow the OS), **Light**, **Ink**, and six popular editor palettes: **Dracula**, **Nord**, **Catppuccin Mocha**, **Tokyo Night**, **Gruvbox**, **Rosé Pine**. The choice is remembered in the browser (`localStorage["theme"]`) and applied before the page paints, so there is no light flash. Palette colours come from each theme's own repository (source noted above each CSS block); the in-between shades (chip fill, heatmap steps, paused-card tint) are blends of that palette's colours. Dracula's and Nord's comment greys were lightened for muted text so every theme meets WCAG AA contrast.
 - **Ink** (warm charcoal with cream text, the light theme's paper look in the dark) replaces the old cool blue-grey dark theme as the default when the OS is dark.
 - Dark themes set `color-scheme: dark`, so native controls (the project dropdown, scrollbars) are dark too.
+- Week view: a day-by-day heatmap (Mon–Sun) above the project bars, shaded by commits relative to the week's busiest day. Like the Month heatmap, hover shows the day's tasks and clicking opens it in the Day view.
 
 ## 1.0.3 – 2026-11-26
 

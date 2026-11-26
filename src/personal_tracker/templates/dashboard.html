@@ -472,17 +472,18 @@ function rollup(ts) {
   return `<div class="rollup">${Object.keys(byP).sort().map(p => { const n = sum(byP[p], t=>t.cs.length);
     return `<div class="bar"><span>${esc(p)}</span><i style="width:${Math.max(3, n/max*100)}%"></i><span>${pl(n, "commit")}</span></div>`; }).join("")}</div>`;
 }
-function heatmap(ts, monthKey) {
+function heatmap(ts, days) {   // days: consecutive YYYY-MM-DD keys (a month, or a week starting Monday)
   const per = {}; ts.forEach(t => per[t.date] = (per[t.date]||0) + t.cs.length);
-  const cells = [], lead = (new Date(monthKey + "-01T12:00:00Z").getUTCDay() + 6) % 7;
+  const cells = [], lead = (new Date(days[0] + "T12:00:00Z").getUTCDay() + 6) % 7;
   for (let i = 0; i < lead; i++) cells.push(`<div style="visibility:hidden"></div>`);
-  const dim = new Date(Date.UTC(+monthKey.slice(0,4), +monthKey.slice(5), 0)).getUTCDate();
-  const peak = Math.max(1, ...Object.values(per));
-  for (let d = 1; d <= dim; d++) { const k = monthKey + "-" + String(d).padStart(2,"0"), n = per[k] || 0;
-    const l = !n ? 0 : Math.min(4, Math.ceil(n / peak * 4));
-    cells.push(`<div data-l="${l}" data-day="${k}" tabindex="0" aria-label="${k}: ${n} commits. Open day">${d}</div>`); }
+  const peak = Math.max(1, ...days.map(k => per[k] || 0));   // shade relative to the busiest day on screen
+  for (const k of days) { const n = per[k] || 0, l = !n ? 0 : Math.min(4, Math.ceil(n / peak * 4));
+    cells.push(`<div data-l="${l}" data-day="${k}" tabindex="0" aria-label="${k}: ${n} commits. Open day">${+k.slice(8)}</div>`); }
   return `<div class="heat">${["M","T","W","T","F","S","S"].map(x=>`<div class="dow">${x}</div>`).join("")}${cells.join("")}</div>`;
 }
+const monthDays = m => Array.from({length: new Date(Date.UTC(+m.slice(0,4), +m.slice(5), 0)).getUTCDate()},
+  (_, i) => m + "-" + String(i + 1).padStart(2, "0"));
+const weekDays = k => Array.from({length: 7}, (_, i) => addDays(k, i));
 const highlights = ts => threadsOf(ts.filter(t => t.kind !== "unsummarised"))
   .sort((a,b) => b.commits - a.commits || b.days - a.days).slice(0, 5);
 function highlightsHTML(ts) {
@@ -501,7 +502,7 @@ function renderDay(k) {
 }
 function renderRange(v, k) {
   const ts = inPeriod(v, k), start = v === "week" ? k : k + "-01";
-  const head = v === "month" ? heatmap(ts, k) + highlightsHTML(ts) : "";
+  const head = v === "month" ? heatmap(ts, monthDays(k)) + highlightsHTML(ts) : heatmap(ts, weekDays(k));
   if (!ts.length) return head + empty("No commits in this period.");
   const byP = groupBy(ts, t => t.project);
   return head + rollup(ts) + Object.keys(byP).sort().map(p => { const ths = threadsOf(byP[p]);
@@ -745,7 +746,7 @@ document.getElementById("modal-copy").addEventListener("click", copyModal);
 document.getElementById("modal-close").addEventListener("click", closeModal);
 modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
 
-// Month heatmap: hover / focus shows the day; click opens it in the Day view (touch: first tap previews)
+// Week / Month heatmap: hover / focus shows the day; click opens it in the Day view (touch: first tap previews)
 const pop = document.getElementById("pop");
 let popDay = null;
 function showPop(cell) {
