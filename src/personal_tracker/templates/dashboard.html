@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Personal Work Tracker</title>
 <link rel="icon" href="data:,">
+<script>/* apply the saved theme before first paint (no light flash) */
+try { const t = localStorage.getItem("theme"); if (["light","ink","dracula","nord","mocha","tokyo","gruvbox","rosepine"].includes(t)) document.documentElement.dataset.theme = t; } catch (_) {}
+</script>
 <style>
 :root{
   --bg:#f6f5f1; --surface:#fff; --surface2:#f0eee8; --text:#1c1b18; --muted:#6b675e; --line:#e3e0d6;
@@ -13,21 +16,81 @@
   --heat0:#ebe8df; --heat1:#c5ddd3; --heat2:#8fbfae; --heat3:#4f9680; --heat4:#2f5d50;
   --paused:#97690f; --paused-soft:#f6edd8; --on-accent:#fff;
 }
+/* Dark themes. Ink (warm charcoal, the light theme's paper inverted) is the default when the OS is dark and
+   nothing was picked. The others are popular editor palettes (source above each block); in-between shades
+   (accent-soft, heat ramp, paused-soft) are blends of each palette's own colours. The Theme menu picks one
+   and remembers it; "Auto" follows the OS. */
 @media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#15161a; --surface:#1d1f25; --surface2:#262932; --text:#ecebe6; --muted:#9b9a93; --line:#31343d;
-    --accent:#7fc4ad; --accent-soft:#22352f;
-    --feature:#7fc4ad; --fix:#e59a74; --infra:#8fa8e6; --docs:#d1c177; --other:#9b9a93;
-    --heat0:#262932; --heat1:#25413a; --heat2:#2f6355; --heat3:#4a9a82; --heat4:#7fc4ad;
-    --paused:#d8b25e; --paused-soft:#33301f; --on-accent:#10241e;
+  :root:not([data-theme]){
+    color-scheme:dark;
+    --bg:#1a1917; --surface:#22211e; --surface2:#2c2a26; --text:#ece8df; --muted:#a39d91; --line:#3a3732;
+    --accent:#8fcab3; --accent-soft:#23332c;
+    --feature:#8fcab3; --fix:#e9a07c; --infra:#9fb4e6; --docs:#d8c47f; --other:#a39d91;
+    --heat0:#2c2a26; --heat1:#2a3f36; --heat2:#36634f; --heat3:#529b80; --heat4:#8fcab3;
+    --paused:#e0b866; --paused-soft:#2e2a20; --on-accent:#11241d;
   }
 }
-:root[data-theme="dark"]{
-  --bg:#15161a; --surface:#1d1f25; --surface2:#262932; --text:#ecebe6; --muted:#9b9a93; --line:#31343d;
-  --accent:#7fc4ad; --accent-soft:#22352f;
-  --feature:#7fc4ad; --fix:#e59a74; --infra:#8fa8e6; --docs:#d1c177; --other:#9b9a93;
-  --heat0:#262932; --heat1:#25413a; --heat2:#2f6355; --heat3:#4a9a82; --heat4:#7fc4ad;
-  --paused:#d8b25e; --paused-soft:#33301f; --on-accent:#10241e;
+:root[data-theme="ink"]{
+  color-scheme:dark;
+  --bg:#1a1917; --surface:#22211e; --surface2:#2c2a26; --text:#ece8df; --muted:#a39d91; --line:#3a3732;
+  --accent:#8fcab3; --accent-soft:#23332c;
+  --feature:#8fcab3; --fix:#e9a07c; --infra:#9fb4e6; --docs:#d8c47f; --other:#a39d91;
+  --heat0:#2c2a26; --heat1:#2a3f36; --heat2:#36634f; --heat3:#529b80; --heat4:#8fcab3;
+  --paused:#e0b866; --paused-soft:#2e2a20; --on-accent:#11241d;
+}
+/* Dracula (github.com/dracula/visual-studio-code) */
+:root[data-theme="dracula"]{
+  color-scheme:dark;
+  --bg:#21222c; --surface:#282a36; --surface2:#353746; --text:#f8f8f2; --muted:#98a2c0; --line:#44475a;
+  --accent:#bd93f9; --accent-soft:#494161;
+  --feature:#50fa7b; --fix:#ff79c6; --infra:#8be9fd; --docs:#f1fa8c; --other:#98a2c0;
+  --heat0:#353746; --heat1:#5e537c; --heat2:#806aa8; --heat3:#a281d5; --heat4:#bd93f9;
+  --paused:#ffb86c; --paused-soft:#423b3c; --on-accent:#21222c;
+}
+/* Nord (github.com/nordtheme/nord) */
+:root[data-theme="nord"]{
+  color-scheme:dark;
+  --bg:#2e3440; --surface:#3b4252; --surface2:#434c5e; --text:#eceff4; --muted:#b9bec8; --line:#4c566a;
+  --accent:#88c0d0; --accent-soft:#4c5e6e;
+  --feature:#a3be8c; --fix:#d08770; --infra:#81a1c1; --docs:#ebcb8b; --other:#b48ead;
+  --heat0:#434c5e; --heat1:#586f80; --heat2:#698c9d; --heat3:#7aa9b9; --heat4:#88c0d0;
+  --paused:#ebcb8b; --paused-soft:#505259; --on-accent:#2e3440;
+}
+/* Catppuccin Mocha (github.com/catppuccin/palette) */
+:root[data-theme="mocha"]{
+  color-scheme:dark;
+  --bg:#181825; --surface:#1e1e2e; --surface2:#313244; --text:#cdd6f4; --muted:#a6adc8; --line:#45475a;
+  --accent:#cba6f7; --accent-soft:#443c5a;
+  --feature:#a6e3a1; --fix:#fab387; --infra:#89b4fa; --docs:#f9e2af; --other:#9399b2;
+  --heat0:#313244; --heat1:#5f557a; --heat2:#8672a6; --heat3:#ac8fd3; --heat4:#cba6f7;
+  --paused:#f9e2af; --paused-soft:#38363d; --on-accent:#181825;
+}
+/* Tokyo Night (github.com/enkia/tokyo-night-vscode-theme) */
+:root[data-theme="tokyo"]{
+  color-scheme:dark;
+  --bg:#16161e; --surface:#1a1b26; --surface2:#24283b; --text:#c0caf5; --muted:#9aa5ce; --line:#373b51;
+  --accent:#7aa2f7; --accent-soft:#2f3954;
+  --feature:#9ece6a; --fix:#ff9e64; --infra:#7dcfff; --docs:#e0af68; --other:#bb9af7;
+  --heat0:#24283b; --heat1:#3e4d73; --heat2:#536ba2; --heat3:#698ad1; --heat4:#7aa2f7;
+  --paused:#e0af68; --paused-soft:#322d2e; --on-accent:#16161e;
+}
+/* Gruvbox dark (github.com/morhetz/gruvbox) */
+:root[data-theme="gruvbox"]{
+  color-scheme:dark;
+  --bg:#1d2021; --surface:#282828; --surface2:#32302f; --text:#ebdbb2; --muted:#a89984; --line:#504945;
+  --accent:#fe8019; --accent-soft:#573b25;
+  --feature:#b8bb26; --fix:#fb4934; --infra:#83a598; --docs:#fabd2f; --other:#928374;
+  --heat0:#32302f; --heat1:#6f4828; --heat2:#a25c23; --heat3:#d5701d; --heat4:#fe8019;
+  --paused:#fabd2f; --paused-soft:#413a29; --on-accent:#1d2021;
+}
+/* Rosé Pine (github.com/rose-pine/palette) */
+:root[data-theme="rosepine"]{
+  color-scheme:dark;
+  --bg:#191724; --surface:#1f1d2e; --surface2:#26233a; --text:#e0def4; --muted:#908caa; --line:#403d52;
+  --accent:#ebbcba; --accent-soft:#4c404d;
+  --feature:#9ccfd8; --fix:#eb6f92; --infra:#c4a7e7; --docs:#f6c177; --other:#908caa;
+  --heat0:#26233a; --heat1:#615160; --heat2:#927780; --heat3:#c49da0; --heat4:#ebbcba;
+  --paused:#f6c177; --paused-soft:#393137; --on-accent:#191724;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
@@ -234,7 +297,11 @@ kbd{font:11px ui-monospace,Menlo,monospace;border:1px solid var(--line);border-b
     <div class="actions">
       <button class="btn" id="standup" title="Yesterday / Today / Blockers as text">Copy standup</button>
       <button class="btn" id="report" title="Markdown report of the period on screen">Copy report</button>
-      <button class="btn" id="theme" title="Toggle theme">Theme</button>
+      <select class="btn" id="theme" title="Theme" aria-label="Theme">
+        <option value="">Theme: Auto</option><option value="light">Light</option><option value="ink">Ink</option>
+        <option value="dracula">Dracula</option><option value="nord">Nord</option><option value="mocha">Catppuccin Mocha</option>
+        <option value="tokyo">Tokyo Night</option><option value="gruvbox">Gruvbox</option><option value="rosepine">Rosé Pine</option>
+      </select>
     </div>
   </header>
   <div class="period" id="period"></div>
@@ -666,9 +733,12 @@ document.getElementById("chips").innerHTML = projects.map(p => `<button class="c
 document.getElementById("chips").addEventListener("click", e => { const b = e.target.closest(".chip"); if (!b) return;
   const on = b.getAttribute("aria-pressed") === "true"; b.setAttribute("aria-pressed", String(!on));
   on ? state.projects.delete(b.dataset.p) : state.projects.add(b.dataset.p); render(); });
-document.getElementById("theme").addEventListener("click", () => {
-  const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-  r.dataset.theme = dark ? "light" : "dark"; });
+const themeSel = document.getElementById("theme");
+themeSel.value = document.documentElement.dataset.theme || "";            // set by the early <head> script
+themeSel.addEventListener("change", () => {
+  const t = themeSel.value, r = document.documentElement;
+  if (t) r.dataset.theme = t; else delete r.dataset.theme;               // "" = Auto: follow the OS
+  try { t ? localStorage.setItem("theme", t) : localStorage.removeItem("theme"); } catch (_) {} });
 document.getElementById("standup").addEventListener("click", () => openModal("Standup", standupText()));
 document.getElementById("report").addEventListener("click", () => openModal("Report", reportText()));
 document.getElementById("modal-copy").addEventListener("click", copyModal);
