@@ -38,10 +38,11 @@ def build():
     # Serialise builds: concurrent `tracker` calls each rebuild; the last one to run
     # reads the newest todo.json, so the pages never end up stale.
     with files.lock(paths.file("build.lock")):
+        cfg = config.load()
         data = files.read_json(paths.file("commits.json"))
-        if data is None:
-            raise TrackerError("no commits.json yet -- run: tracker scan")
-        data["timezone"], data["version"] = config.load().timezone, __version__
+        if data is None:   # before the first `tracker scan`: an empty page, so adding tasks doesn't warn
+            data = {"generated_at": None, "since": None, "author_pattern": " | ".join(cfg.author_emails), "commits": []}
+        data["timezone"], data["version"] = cfg.timezone, __version__
         data["tasks"] = files.read_json(paths.file("tasks.json"), {"tasks": []})["tasks"]
         todo_doc = files.read_json(paths.file("todo.json"), {"items": []})
         data["todo"] = todo_doc["items"]

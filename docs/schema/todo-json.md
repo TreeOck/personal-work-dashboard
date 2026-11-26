@@ -51,7 +51,8 @@ Migration: `tracker migrate` copies an old checkout's `config.json`, adding `"ti
 ## `commits.json`
 
 `{"generated_at", "since", "author_pattern", "commits": [Commit, ...]}`, written by `tracker scan` (merged by repo path
-and sha, so older history is kept).
+and sha, so older history is kept). Until the first scan the file doesn't exist; builds then use an empty list (the page says "no
+commits scanned yet") and don't create the file.
 
 | Field | Type | Notes |
 |---|---|---|

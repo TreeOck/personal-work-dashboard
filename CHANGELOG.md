@@ -2,6 +2,11 @@
 
 Versions follow `pyproject.toml` (the only place the version is written), with semantic versioning from 1.0.
 
+## 1.0.2 – 2026-11-26
+
+### Fixed
+- Before the first `tracker scan` (no `commits.json` yet), adding or changing a task no longer prints "warning: dashboard rebuild failed"; the dashboard is built empty and its header says "no commits scanned yet (run: tracker scan)". Agents connected right after `tracker init` no longer get that warning in every tool result.
+
 ## 1.0.1 – 2026-11-26
 
 Published on PyPI: `pipx install personal-work-dashboard`. No code changes.

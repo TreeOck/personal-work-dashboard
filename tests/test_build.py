@@ -69,7 +69,7 @@ def test_build_inlines_timezone_and_version(site):
     (site.dir / "config.json").write_text(json.dumps(cfg))
     assert site().returncode == 0
     html = (site.dir / "dashboard.html").read_text(encoding="utf-8")
-    assert '"timezone": "Asia/Kolkata"' in html and '"version": "1.0.1"' in html
+    assert '"timezone": "Asia/Kolkata"' in html and '"version": "1.0.2"' in html
     assert "const TZ = DATA.timezone" in html and 'timeZone: "Asia/Kolkata"' not in html
 
 
@@ -111,3 +111,19 @@ def test_build_embeds_branch_list_per_repo(site):
                                        "last": "2026-10-14T10:00:00+05:30", "count": 2}],
                    "alpha/other": [{"branch": "feat/q", "first": "2026-10-12T10:00:00+05:30",
                                     "last": "2026-10-12T10:00:00+05:30", "count": 1}]}
+
+
+def test_builds_before_the_first_scan(site):
+    (site.dir / "commits.json").unlink()   # fresh install: tracker init, no tracker scan yet
+    r = site()
+    assert r.returncode == 0, r.stderr
+    assert "warning" not in r.stderr and (site.dir / "dashboard.html").exists()
+    data = json.loads((site.dir / "dev-data.json").read_text(encoding="utf-8"))
+    assert data["commits"] == [] and data["generated_at"] is None and data["author_pattern"] == "me@example.com"
+    assert not (site.dir / "commits.json").exists()   # building doesn't pretend a scan happened
+
+
+def test_add_before_the_first_scan_prints_only_the_id(sandbox):
+    (sandbox.dir / "commits.json").unlink()
+    r = sandbox("add", "first task")
+    assert r.returncode == 0 and r.stdout.strip() == "t-0001" and r.stderr == ""

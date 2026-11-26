@@ -653,7 +653,9 @@ async function copyModal() {
 }
 
 // ---- wiring
-document.getElementById("gen").textContent = `Commits by ${DATA.author_pattern} · since ${firstDay} · refreshed ${new Date(DATA.generated_at).toLocaleString("en-GB",{timeZone:TZ})} ${ZN} · v${DATA.version}`;
+document.getElementById("gen").textContent = DATA.generated_at
+  ? `Commits by ${DATA.author_pattern} · since ${commits.length ? firstDay : "-"} · refreshed ${new Date(DATA.generated_at).toLocaleString("en-GB",{timeZone:TZ})} ${ZN} · v${DATA.version}`
+  : `Commits by ${DATA.author_pattern} · no commits scanned yet (run: tracker scan) · v${DATA.version}`;
 document.getElementById("tabs").addEventListener("click", e => { const b = e.target.closest(".tab"); if (b) setView(b.dataset.v); });
 document.getElementById("period").addEventListener("click", e => { if (e.target.id === "prev") step(-1); if (e.target.id === "next") step(1); });
 const q = document.getElementById("q");
