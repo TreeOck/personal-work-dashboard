@@ -14,19 +14,19 @@ You need Python 3.11+ and git. [pipx](https://pipx.pypa.io) keeps the tool in it
 **macOS**
 ```bash
 brew install pipx && pipx ensurepath
-pipx install git+https://github.com/TreeOck/personal-work-dashboard
+pipx install personal-work-dashboard
 ```
 
 **Windows** (PowerShell; install Python from python.org with "Add python.exe to PATH" ticked, and [Git for Windows](https://git-scm.com/download/win))
 ```powershell
 py -m pip install --user pipx
 py -m pipx ensurepath          # then open a new terminal
-pipx install git+https://github.com/TreeOck/personal-work-dashboard
+pipx install personal-work-dashboard
 ```
 
-**Linux**: `pipx install git+https://github.com/TreeOck/personal-work-dashboard`, then use `cron` for the daily refresh (below).
+**Linux**: `pipx install personal-work-dashboard`, then use `cron` for the daily refresh (below).
 
-For development: `git clone` the repo and `pipx install --editable .` (or `pip install -e ".[test]"` in a virtualenv).
+The latest unreleased code: `pipx install git+https://github.com/TreeOck/personal-work-dashboard`. For development: `git clone` the repo and `pipx install --editable .` (or `pip install -e ".[test]"` in a virtualenv).
 
 ## First run
 
@@ -84,7 +84,7 @@ tracker setup antigravity    # MCP server, rules in ~/.gemini/AGENTS.md, tools a
 tracker setup                # what's set up;  add --remove to undo
 ```
 
-Setup also asks whether that tool should write your daily summaries (it uses your account's quota). Everything it changes is backed up and undone by `--remove`. Details, and what to expect per tool: [docs/operations/agent-setup.md](docs/operations/agent-setup.md). Other agents can run `tracker mcp` ([docs/api/mcp.md](docs/api/mcp.md)) or follow the rule text in `docs/operations/install.md`.
+Setup also asks whether that tool should write your daily summaries (it uses your account's quota). Everything it changes is backed up and undone by `--remove`. Details, and what to expect per tool: [docs/operations/agent-setup.md](https://github.com/TreeOck/personal-work-dashboard/blob/main/docs/operations/agent-setup.md). Other agents can run `tracker mcp` ([docs/api/mcp.md](https://github.com/TreeOck/personal-work-dashboard/blob/main/docs/api/mcp.md)) or follow the rule text in `docs/operations/install.md`.
 
 ## 3D desk (optional showpiece)
 

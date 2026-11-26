@@ -7,7 +7,7 @@ from personal_tracker import __version__
 
 def test_version(sandbox):
     r = sandbox("--version")
-    assert r.returncode == 0 and r.stdout.strip() == "tracker " + __version__ == "tracker 1.0.0"
+    assert r.returncode == 0 and r.stdout.strip() == "tracker " + __version__ == "tracker 1.0.1"
 
 
 def test_no_config_says_run_init(sandbox):

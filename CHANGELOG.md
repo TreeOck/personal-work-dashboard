@@ -2,6 +2,14 @@
 
 Versions follow `pyproject.toml` (the only place the version is written), with semantic versioning from 1.0.
 
+## 1.0.1 – 2026-11-26
+
+Published on PyPI: `pipx install personal-work-dashboard`. No code changes.
+
+### Added
+- Package details for PyPI (licence, author, links, classifiers); README links work on the PyPI page.
+- `.github/workflows/publish.yml`: publishing a GitHub release uploads that version to PyPI (trusted publishing). See `docs/operations/releasing.md`.
+
 ## 1.0.0 – 2026-11-20
 
 First stable release. No code changes since 0.10.0; this marks the three v1.0 steps as done:
