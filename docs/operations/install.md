@@ -4,7 +4,7 @@
 Python 3.11+, git, and a browser. [Claude Code](https://claude.com/claude-code) only if you want the default summariser.
 
 ## Install
-See the README for macOS / Windows / Linux. Short form: `pipx install personal-work-dashboard` (from PyPI; `pipx upgrade personal-work-dashboard` later), then `tracker init`, `tracker scan --days 30`, `tracker`.
+See the README for macOS / Windows / Linux. Short form: `pipx install personal-work-dashboard` (from PyPI; `pipx upgrade personal-work-dashboard` later), then `tracker init`. In a terminal, init carries on through the first scan, the daily refresh, connecting an AI tool and opening the dashboard, asking before each one. Without a terminal it only writes the config; then run `tracker scan --days 30` and `tracker`.
 
 - **Upgrade:** `pipx upgrade personal-work-dashboard`. The next `tracker` run notices that the running edit server has an older version and replaces it.
 - **Uninstall:** `tracker schedule off`, then `pipx uninstall personal-work-dashboard`. Your data stays in the data folder (`~/.personal-tracker`, or `$TRACKER_HOME`); delete it by hand if you want it gone.

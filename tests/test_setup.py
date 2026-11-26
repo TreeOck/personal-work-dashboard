@@ -87,8 +87,14 @@ def test_cli_init_needs_root_and_email_when_not_interactive(sandbox):
 def test_init_prompts_when_interactive(home, monkeypatch, capsys):
     from personal_tracker import cli
     answers = iter(["~/Valiance", "a@b.c, d@e.f", "Asia/Kolkata", "none"])
+
+    def answer(prompt=""):
+        try:
+            return next(answers)
+        except StopIteration:   # the first-run questions after init: end-of-file stops them (tests/test_first_run.py)
+            raise EOFError from None
     monkeypatch.setattr("sys.stdin.isatty", lambda: True, raising=False)
-    monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
+    monkeypatch.setattr("builtins.input", answer)
     assert cli.main(["init"]) == 0
     cfg = config.load()
     assert str(cfg.root).endswith("Valiance") and cfg.author_emails == ["a@b.c", "d@e.f"]

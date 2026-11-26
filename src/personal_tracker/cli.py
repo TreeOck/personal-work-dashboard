@@ -1,6 +1,7 @@
 """The `tracker` command."""
 import argparse
 import contextlib
+import shutil
 import sys
 import webbrowser
 from datetime import date, datetime
@@ -126,7 +127,118 @@ def run_init(args):
     if summariser is None:
         summariser = setup.default_summariser()
     path = setup.init(roots, emails, tz, summariser or None, args.force)
-    print("Wrote %s\nNext: tracker scan --days 30   then   tracker" % path)
+    print("Wrote %s" % path)
+    if sys.stdin.isatty():
+        first_run()
+    else:
+        print(NEXT_STEPS)
+
+
+NEXT_STEPS = ("Next: tracker scan --days 30   then   tracker\n"
+              "Optional: tracker schedule on (daily refresh), tracker setup <%s> (connect an AI tool)" % "|".join(agent_setup.TOOLS))
+
+
+def _step(label, retry, fn):
+    """Run one first-run step; a failure is reported with the command to retry and doesn't stop the later steps."""
+    try:
+        fn()
+    except Exception as e:   # like refresh(): an OS error (plist write, git, an agent CLI) must not end the first run either
+        print("%s failed: %s\n  retry later with: %s" % (label, e, retry))
+
+
+_EOF = object()   # stdin can't answer: stop asking, print the remaining commands instead
+
+
+def _ask_until(prompt, parse):
+    """Ask until parse(answer) doesn't raise ValueError; _EOF when stdin can't answer."""
+    while True:
+        ans = _ask(prompt)
+        if ans is None:
+            return _EOF
+        try:
+            return parse(ans.strip())
+        except ValueError as e:
+            print("  %s" % e)
+
+
+def _parse_days(ans):
+    if not ans:
+        return 30
+    if not ans.isdigit():
+        raise ValueError("enter a whole number of days (0 skips the scan)")
+    if int(ans) > 36500:
+        raise ValueError("that's more than 100 years; enter a smaller number of days")
+    return int(ans)
+
+
+def _parse_schedule(ans):
+    low = ans.lower()
+    if low in ("", "y", "yes"):
+        return "17:00"
+    if low in ("n", "no"):
+        return False
+    try:
+        schedule.parse_time(ans)
+    except TrackerError as e:
+        raise ValueError("answer y, n, or a time like 09:30 (%s)" % e) from None
+    return ans
+
+
+def _parse_tool(default):
+    def parse(ans):
+        tool = ans.lower() or default
+        if tool not in agent_setup.TOOLS + ("none",):
+            raise ValueError("choose one of: %s, none" % ", ".join(agent_setup.TOOLS))
+        return None if tool == "none" else tool
+    return parse
+
+
+def _summarising_with(tool):
+    """True when config.json already uses this tool's summariser (e.g. Claude Code picked during init), so don't ask twice."""
+    current = config.load().summariser or []
+    want = agent_setup.SUMMARISERS[tool][0]
+    return bool(current) and Path(current[0]).name == want[0] and list(current[1:]) == list(want[1:])
+
+
+def _connect(tool):
+    print("\n".join(agent_setup.setup(tool)))
+    print("\n".join(agent_setup.offer_summaries(tool, False if _summarising_with(tool) else None)) or "summaries: unchanged")
+
+
+def _open():
+    if not paths.file("dashboard.html").exists():
+        build.build()
+    server.open_dashboard()
+
+
+def first_run():
+    """After an interactive `tracker init`: scan, daily refresh, connect an AI tool, open the dashboard.
+    Each step is the same code as its own command; stdin hitting end-of-file stops here and prints the commands."""
+    try:
+        days = _ask_until("Scan how many days of git history? [30] (0 = skip): ", _parse_days)
+        if days is _EOF:
+            print(NEXT_STEPS)
+            return
+        if days:
+            _step("scan", "tracker scan --days %d" % days, lambda: (scan.run(days), build.build()))
+        at = _ask_until("Refresh the dashboard every day? [Y/n, or a time like 09:30] (default 17:00): ", _parse_schedule)
+        if at is _EOF:
+            print(NEXT_STEPS)
+            return
+        if at:
+            _step("daily refresh", "tracker schedule on --at %s" % at, lambda: schedule.on(at))
+        default = "claude-code" if shutil.which("claude") else "none"
+        tool = _ask_until("Connect an AI tool to keep the board in sync? [%s/none] (%s): " % ("/".join(agent_setup.TOOLS), default),
+                          _parse_tool(default))
+        if tool is _EOF:
+            print(NEXT_STEPS)
+            return
+        if tool:
+            _step("setup " + tool, "tracker setup %s" % tool, lambda: _connect(tool))
+        print("Opening the dashboard (later: just run tracker)")
+        _step("opening the dashboard", "tracker", _open)
+    except KeyboardInterrupt:
+        print("\nStopped. Your config is saved; the steps above that finished stay done.\n" + NEXT_STEPS)
 
 
 def split_or_none(line):
